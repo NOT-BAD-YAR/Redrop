@@ -1,0 +1,43 @@
+# weights.yaml
+technical_fit:
+  capability_weights:
+    Retrieval: 15
+    Ranking: 15
+    Evaluation: 15
+    Matching: 10
+    Recommendation: 5
+    Embeddings: 5
+    Vector Search: 5
+    LTR: 5
+    Fine Tuning: 3
+    Product ML: 3
+    Distributed Systems: 2
+    HR Tech / Marketplace: 2
+    Open Source: 1
+
+behavior_engine:
+  min_multiplier: 0.70
+  max_multiplier: 1.15
+  groups:
+    market_intent: 0.25
+    reachability: 0.25
+    recruiter_demand: 0.15
+    reliability: 0.15
+    logistics: 0.10
+    trust: 0.10
+
+credibility_engine:
+  minor_penalty: 0.95
+  medium_penalty: 0.85
+  major_penalty: 0.60
+  assessment_penalty: 0.85
+
+risk_engine:
+  domain:
+    consulting_only: 15
+    langchain_only: 20
+    framework_centric: 20
+    cv_only: 20
+    speech_only: 20
+    robotics_only: 20
+  expected_salary_penalty_max: 2

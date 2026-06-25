@@ -1,0 +1,32 @@
+# dictionaries.yaml
+taxonomy:
+  tier_1:
+    Retrieval: ["\\bretrieval\\b", "\\bsemantic search\\b", "\\binformation retrieval\\b", "\\bdense retrieval\\b", "\\bhybrid retrieval\\b", "\\bcandidate retrieval\\b", "\\bvector retrieval\\b"]
+    Ranking: ["\\branking\\b", "\\blearning-to-rank\\b", "\\blearning to rank\\b", "\\bre-ranking\\b", "\\breranking\\b", "\\brelevance\\b", "\\branking models?\\b"]
+    Evaluation: ["\\bndcg\\b", "\\bmrr\\b", "\\bmap\\b", "a/b testing", "\\boffline evaluation\\b", "\\bonline evaluation\\b", "\\bevaluation framework\\b"]
+    Recommendation: ["\\brecommendation systems?\\b", "\\bpersonalization\\b", "\\brecommender systems?\\b", "\\brecommender\\b"]
+    Matching: ["\\bcandidate matching\\b", "\\bjd matching\\b", "\\bmarketplace matching\\b"]
+  
+  tier_2:
+    Embeddings: ["\\bbge\\b", "\\be5\\b", "\\bsentence[- ]transformers\\b", "\\bembeddings?\\b"]
+    Vector Search: ["\\bpinecone\\b", "\\bmilvus\\b", "\\bqdrant\\b", "\\bfaiss\\b", "\\bweaviate\\b", "\\bopensearch\\b", "\\belasticsearch\\b", "\\bvector search\\b", "\\bvector db\\b"]
+    LTR: ["\\bxgboost\\b", "\\blightgbm\\b", "\\bltr\\b"]
+    Fine Tuning: ["\\blora\\b", "\\bqlora\\b", "\\bpeft\\b", "\\bfine[- ]tuning\\b", "\\bfine[- ]tune\\b"]
+    Product ML: ["\\bproduction\\b", "\\blatency\\b", "\\bscale\\b", "\\breal users\\b", "\\bqps\\b", "\\bdeployment\\b"]
+  
+  tier_3:
+    Distributed Systems: ["\\bdistributed systems?\\b", "\\bspark\\b", "\\bkafka\\b"]
+    HR Tech / Marketplace: ["\\bhr[- ]tech\\b", "\\bmarketplace\\b", "\\brecruiting\\b", "\\btalent\\b"]
+    Open Source: ["\\bopen[- ]source\\b", "\\boss\\b", "\\bcontributions?\\b"]
+
+ownership:
+  high: ["\\bbuilt\\b", "\\bowned\\b", "\\bled\\b", "\\barchitected\\b", "\\bdesigned\\b", "\\bimplemented\\b", "\\bcreated\\b", "\\bauthored\\b"]
+  medium: ["\\bcontributed\\b", "\\bworked on\\b", "\\bsupported\\b", "\\bdeveloped\\b", "\\bmaintained\\b"]
+  low: ["\\bassisted\\b", "\\bhelped\\b", "\\bparticipated\\b"]
+  exploration: ["\\blearning\\b", "\\bexploring\\b", "\\bfamiliar with\\b", "\\bexperimented\\b"]
+  negation: ["\\bnever\\b", "\\bnot\\b", "\\blimited exposure\\b"]
+
+production:
+  mention: ["\\bdeployed\\b", "\\blaunched\\b", "\\bproduction\\b", "\\brolled out\\b"]
+  users: ["\\breal users\\b", "\\bcustomers\\b", "\\btraffic\\b"]
+  scale: ["\\bscale\\b", "\\bqps\\b", "\\blatency\\b", "\\bmillisecond\\b", "\\bmillions\\b", "\\bbillions\\b", "\\btb\\b", "\\bpb\\b"]

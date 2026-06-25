@@ -1,0 +1,10 @@
+# templates.yaml
+strengths:
+  tier_1_high: "Strong Tier 1 capabilities in {capabilities}."
+  product_bonus: "Has highly relevant product company background."
+  production_scale: "Demonstrated production deployment at scale."
+
+concerns:
+  behavioral_flags: "Behavioral flags present (Response rate: {response_rate}%)."
+  availability_risk: "High availability risk due to {reason}."
+  domain_risk: "Domain fit penalty applied due to {reason}."
