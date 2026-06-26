@@ -9,6 +9,8 @@ The project is structured into multiple core modules handling specific stages of
 ```text
 redrob_ranker/
 ├── data/                    # Expected directory for candidates.jsonl input
+├── models/
+│   └── all-MiniLM-L6-v2/    # Bundled offline embedding model (~87 MB, no internet at runtime)
 ├── config/                  
 │   ├── dictionaries.yaml    # Stores all RegEx keyword patterns for extraction
 │   ├── templates.yaml       # Reasoning generator templates
@@ -55,6 +57,16 @@ ln -sf "../../[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_chal
 ```
 
 Activate the venv in every new terminal: `source .venv/bin/activate`
+
+### Offline embedding model (judges: no internet)
+
+The MiniLM model is **committed under `models/all-MiniLM-L6-v2/`** (~87 MB). Do not download from Hugging Face at runtime.
+
+```python
+from src.core.embeddings import get_embedding_model
+
+model = get_embedding_model()  # loads ./models/all-MiniLM-L6-v2 from disk
+```
 
 ### 1. Install Dependencies
 ```bash
