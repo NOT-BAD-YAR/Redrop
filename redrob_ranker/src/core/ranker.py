@@ -27,6 +27,14 @@ def process_candidate(line: str) -> Any:
         }
             
     cand["trace"] = trace
+
+    sig = cand.get("redrob_signals", {})
+    sal = sig.get("expected_salary_range_inr_lpa", {})
+    sal_min = sal.get("min", 0) or 0
+    sal_max = sal.get("max", 9999) or 9999
+    if sal_min > sal_max:
+        trace["gates"].append("Honeypot: salary_min > salary_max")
+        return cand
     
     try:
         # Pipeline execution
