@@ -1,31 +1,65 @@
 import json
+import logging
 import multiprocessing as mp
-from typing import Dict, Any, List
 from dataclasses import asdict
+from typing import Any, Dict, List, Optional
 
-from src.models.trace import Trace
-from src.core.normalizer import normalize_candidate
-from src.core.validator import validate_evidence
-from src.core.extractor import extract_evidence
-from src.core.scorer import score_technical_fit, apply_experience_penalty, WEIGHTS as CAPABILITIES
 from src.core.behavior_engine import calculate_behavior
-from src.core.risk_engine import evaluate_risks
+from src.core.extractor import extract_evidence
+from src.core.normalizer import normalize_candidate
 from src.core.reasoning import generate_reasoning
+from src.core.risk_engine import evaluate_risks
+from src.core.scorer import apply_experience_penalty, score_technical_fit, WEIGHTS as CAPABILITIES
+from src.core.semantic_index import (
+    fuse_final_score,
+    load_fusion_weights,
+    load_semantic_artifacts,
+    semantic_similarity,
+)
+from src.core.validator import validate_evidence
+from src.models.trace import Trace
+
+logger = logging.getLogger(__name__)
+
+# Worker globals populated once per process via Pool initializer.
+_EMBED_MAP: Dict[str, Any] = {}
+_JD_VEC: Optional[Any] = None
+_FUSION_WEIGHTS: Dict[str, float] = {}
+_SEMANTIC_READY: bool = False
+
+
+def _init_worker(
+    embed_map: Dict[str, Any],
+    jd_vec: Optional[Any],
+    fusion_weights: Dict[str, float],
+    semantic_ready: bool,
+) -> None:
+    global _EMBED_MAP, _JD_VEC, _FUSION_WEIGHTS, _SEMANTIC_READY
+    _EMBED_MAP = embed_map
+    _JD_VEC = jd_vec
+    _FUSION_WEIGHTS = fusion_weights
+    _SEMANTIC_READY = semantic_ready
+
 
 def process_candidate(line: str) -> Any:
-    if not line.strip(): return None
+    if not line.strip():
+        return None
     try:
         cand = json.loads(line)
     except Exception:
         return None
-        
+
     trace = asdict(Trace())
     for cap in CAPABILITIES.keys():
         trace["capabilities"][cap] = {
-            "score": 0.0, "best_role_evidence": "", "ownership": 0.0, 
-            "production": 0.0, "raw_evidence_hits": 0, "exact_matches": []
+            "score": 0.0,
+            "best_role_evidence": "",
+            "ownership": 0.0,
+            "production": 0.0,
+            "raw_evidence_hits": 0,
+            "exact_matches": [],
         }
-            
+
     cand["trace"] = trace
 
     sig = cand.get("redrob_signals", {})
@@ -35,9 +69,8 @@ def process_candidate(line: str) -> Any:
     if sal_min > sal_max:
         trace["gates"].append("Honeypot: salary_min > salary_max")
         return cand
-    
+
     try:
-        # Pipeline execution
         normalize_candidate(cand)
         validate_evidence(cand, trace)
         extract_evidence(cand, trace)
@@ -45,76 +78,99 @@ def process_candidate(line: str) -> Any:
         apply_experience_penalty(cand, trace)
         calculate_behavior(cand, trace)
         evaluate_risks(cand, trace)
-        
-        # Stage 11: Final Score
-        final = (
-            trace["technical_fit"]
-            * trace["behavior"]["final_multiplier"]
-            * trace["credibility"]["final_multiplier"]
+
+        cand_id = cand.get("candidate_id", "")
+        trace["semantic_score"] = semantic_similarity(
+            cand_id, _EMBED_MAP, _JD_VEC, _SEMANTIC_READY
         )
-        final *= trace["behavior"].get("active_days_multiplier", 1.0)
-        final -= max(trace["risks"]["availability_penalty"], trace["risks"]["domain_penalty"])
-        
+        trace["bm25_score"] = 0.0
+
+        final = fuse_final_score(
+            semantic_score=trace["semantic_score"],
+            technical_fit=trace["technical_fit"],
+            bm25_score=trace["bm25_score"],
+            behavioral_multiplier=trace["behavior"]["final_multiplier"],
+            fusion_weights=_FUSION_WEIGHTS,
+        )
+
         trace["final_score"] = final
         cand["final_score"] = final
-        
+
         generate_reasoning(cand, trace)
-        
+
         return cand
-    except Exception as e:
-        # Fallback for unexpected parsing errors
+    except Exception:
         return None
+
 
 class CandidateRanker:
     def __init__(self, input_file: str, output_file: str, top_n: int = 100):
         self.input_file = input_file
         self.output_file = output_file
         self.top_n = top_n
-        
+        self.embed_map: Dict[str, Any] = {}
+        self.jd_vec: Optional[Any] = None
+        self.semantic_ready: bool = False
+        self.fusion_weights: Dict[str, float] = load_fusion_weights()
+
+    def _load_semantic_artifacts(self) -> None:
+        print("Loading semantic artifacts from disk...")
+        self.embed_map, self.jd_vec, self.semantic_ready = load_semantic_artifacts()
+        if self.semantic_ready:
+            print(f"Semantic index ready: {len(self.embed_map):,} candidate vectors")
+        else:
+            print("Semantic index unavailable — semantic_score will be 0.0")
+
     def run(self):
+        self._load_semantic_artifacts()
+
         print(f"Processing candidates from {self.input_file}...")
-        valid_candidates = []
-        
-        with open(self.input_file, "r", encoding="utf-8") as f, mp.Pool() as pool:
+        valid_candidates: List[Dict[str, Any]] = []
+
+        with open(self.input_file, "r", encoding="utf-8") as f, mp.Pool(
+            initializer=_init_worker,
+            initargs=(
+                self.embed_map,
+                self.jd_vec,
+                self.fusion_weights,
+                self.semantic_ready,
+            ),
+        ) as pool:
             for cand in pool.imap_unordered(process_candidate, f, chunksize=1000):
                 if cand is not None:
-                    # Stage 12: Gate Filter
                     if not cand["trace"]["gates"]:
                         valid_candidates.append(cand)
-                        
+
         print(f"Processed {len(valid_candidates)} valid candidates. Sorting...")
 
-        # Stage 13: Sort by score descending; stable tie-break via candidate_id ascending.
         valid_candidates.sort(key=lambda x: x["candidate_id"])
         valid_candidates.sort(
             key=lambda x: (
                 x["final_score"],
-                x["trace"]["credibility"]["final_multiplier"],
-                x["trace"]["behavior"]["final_multiplier"],
+                x["trace"].get("semantic_score", 0.0),
                 x["trace"]["technical_fit"],
+                x["trace"]["behavior"]["final_multiplier"],
             ),
             reverse=True,
         )
 
         top_candidates = valid_candidates[: self.top_n]
 
-        # Calculate top score for normalization
-        max_score = max((c.get("final_score", 0.0) for c in valid_candidates), default=60.0)
+        max_score = max((c.get("final_score", 0.0) for c in valid_candidates), default=1.0)
         if max_score == 0:
-            max_score = 60.0
+            max_score = 1.0
 
         def _rounded_csv_score(cand: Dict[str, Any]) -> float:
             raw_score = cand.get("final_score", 0.0)
             normalized = min(1.0, max(0.0, raw_score / max_score))
             return round(normalized, 3)
 
-        # Re-order top 100 so equal 3-decimal CSV scores tie-break by candidate_id ascending.
         top_candidates.sort(
             key=lambda x: (-_rounded_csv_score(x), x.get("candidate_id", ""))
         )
 
-        # Write to CSV
         import csv
+
         with open(self.output_file, "w", encoding="utf-8", newline="") as out:
             writer = csv.writer(out)
             writer.writerow(["candidate_id", "rank", "score", "reasoning"])
@@ -124,5 +180,5 @@ class CandidateRanker:
                 score = f"{_rounded_csv_score(cand):.3f}"
                 reasoning = " ".join(cand.get("trace", {}).get("reasoning_facts", []))
                 writer.writerow([cand_id, rank, score, reasoning])
-            
+
         print(f"Top {self.top_n} candidates written to {self.output_file}.")

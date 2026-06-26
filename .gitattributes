@@ -1,0 +1,1 @@
+redrob_ranker/artifacts/candidate_embeddings.npy filter=lfs diff=lfs merge=lfs -text

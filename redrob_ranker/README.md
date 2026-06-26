@@ -8,9 +8,16 @@ The project is structured into multiple core modules handling specific stages of
 
 ```text
 redrob_ranker/
-├── data/                    # Expected directory for candidates.jsonl input
+├── artifacts/               # Pre-computed embeddings (offline ranking)
+│   ├── candidate_embeddings.npy
+│   ├── candidate_ids.json
+│   └── jd_embedding.npy
+├── data/                    # Symlink candidates.jsonl + Job Description.md
 ├── models/
 │   └── all-MiniLM-L6-v2/    # Bundled offline embedding model (~87 MB, no internet at runtime)
+├── scripts/
+│   ├── precompute_embeddings.py
+│   └── precompute_jd_embedding.py
 ├── config/                  
 │   ├── dictionaries.yaml    # Stores all RegEx keyword patterns for extraction
 │   ├── templates.yaml       # Reasoning generator templates
@@ -24,6 +31,7 @@ redrob_ranker/
 │   │   ├── reasoning.py        # Stage 14: Non-LLM Template-driven Reasoning Generator
 │   │   ├── risk_engine.py      # Stages 9-10: Availability and Domain Risk Engines (Gates & Penalties)
 │   │   ├── scorer.py           # Stages 6-7: Aggregates capability scores into final Technical Fit
+│   │   ├── semantic_index.py   # Loads pre-computed embeddings + fusion scoring
 │   │   └── validator.py        # Stage 1: Evidence Validation (Consistency & Credibility)
 │   ├── models/
 │   │   ├── candidate.py        # Type hints for candidate JSON objects
@@ -62,28 +70,69 @@ Activate the venv in every new terminal: `source .venv/bin/activate`
 
 The MiniLM model is **committed under `models/all-MiniLM-L6-v2/`** (~87 MB). Do not download from Hugging Face at runtime.
 
-```python
-from src.core.embeddings import get_embedding_model
+---
 
-model = get_embedding_model()  # loads ./models/all-MiniLM-L6-v2 from disk
-```
+## Setup
 
-### 1. Install Dependencies
+Judges clone the repo and run — **no pre-computation needed**. Candidate embeddings are shipped via Git LFS.
+
+### Step 1 — Install dependencies
+
 ```bash
+cd Redrop/redrob_ranker
+source .venv/bin/activate   # create venv first — see Mac setup above
 pip install -r requirements.txt
 ```
 
-### 2. Run the Pipeline
-The `main.py` script utilizes Python's `multiprocessing` to stream and process candidates in parallel without blowing up the memory footprint.
+After clone, pull LFS files:
 
 ```bash
-python src/main.py --candidates data/candidates.jsonl --out output/submission.csv
+git lfs pull
 ```
 
-### 3. Validate output
+### Step 2 — Run ranker (embeddings pre-computed, no wait)
+
 ```bash
-python validate_submission.py output/submission.csv
+source .venv/bin/activate
+
+python src/main.py \
+  --candidates ./data/candidates.jsonl \
+  --out ./output/submission.csv
+
+python validate_submission.py ./output/submission.csv
 ```
+
+> **Note:** `artifacts/candidate_embeddings.npy` (146 MB) is stored via **Git LFS**.
+> It downloads automatically on `git clone` (or `git lfs pull`). No 20-minute pre-computation needed.
+
+Also bundled in the repo (small files, regular git):
+- `artifacts/candidate_ids.json` — 100K aligned candidate IDs
+- `artifacts/jd_embedding.npy` — JD vector for semantic scoring
+- `models/all-MiniLM-L6-v2/` — offline embedding model (~87 MB)
+
+### Optional — Re-generate embeddings from scratch (~20 min)
+
+Only needed if you change the embedding model or candidate text builder.
+
+```bash
+source .venv/bin/activate
+python scripts/precompute_embeddings.py
+python scripts/precompute_jd_embedding.py
+```
+
+**Fusion weights** (`config/weights.yaml`):
+
+```yaml
+fusion_weights:
+  semantic: 0.30
+  technical_fit: 0.30
+  bm25: 0.20
+  behavioral: 0.20
+```
+
+If `artifacts/candidate_embeddings.npy` is missing, the ranker logs a warning and continues with `semantic_score = 0.0`.
+
+---
 
 ## Processing Stages
 
@@ -93,5 +142,5 @@ python validate_submission.py output/submission.csv
 - **Stages 6-7 (Technical Fit):** Caps taxonomy points to prevent over-indexing on keywords. Adds Product Company bonuses (`scorer.py`).
 - **Stage 8 (Behavior):** Evaluates Intent, Reachability, and Demand using a multiplicative modifier (`behavior_engine.py`).
 - **Stages 9-10 (Risks & Gates):** Adds heavy point penalties for low response rates or consulting-only backgrounds. Applies hard removal Gates (`risk_engine.py`).
-- **Stages 11-13 (Rank Orchestration):** Calculates Final Score (`Tech Fit * Behavior * Credibility - Risks`) and sorts Top 100 (`ranker.py`).
+- **Stages 11-13 (Rank Orchestration):** Fuses semantic + technical fit + BM25 + behavioral scores; sorts Top 100 (`ranker.py` + `semantic_index.py`).
 - **Stage 14 (Reasoning):** Outputs human-readable logic templates appended to the trace (`reasoning.py`).
