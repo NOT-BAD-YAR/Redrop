@@ -52,9 +52,10 @@ risk_engine:
     speech_only: 30
     robotics_only: 30
   expected_salary_penalty_max: 2
+  junior_title_penalty: 0.25
 
 fusion_weights:
-  semantic: 0.30
-  technical_fit: 0.30
+  semantic: 0.15
+  technical_fit: 0.45
   bm25: 0.20
   behavioral: 0.20

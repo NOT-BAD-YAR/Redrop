@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Dict, Any
 
 import yaml
@@ -9,6 +10,8 @@ with open(config_path, "r", encoding="utf-8") as f:
 
 WEIGHTS = _CONFIG["technical_fit"]["capability_weights"]
 EXPERIENCE_CONFIG = _CONFIG.get("experience_engine", {})
+SENIORITY_PENALTY = float(_CONFIG.get("risk_engine", {}).get("junior_title_penalty", 0.25))
+JUNIOR_TITLE_PATTERN = re.compile(r"\b(junior|jr\.?)\b", re.IGNORECASE)
 
 
 def score_technical_fit(cand: Dict[str, Any], trace: Dict[str, Any]) -> None:
@@ -54,3 +57,12 @@ def apply_experience_penalty(cand: Dict[str, Any], trace: Dict[str, Any]) -> Non
 
     if penalty_ratio > 0:
         trace["technical_fit"] = max(0.0, trace["technical_fit"] * (1.0 - penalty_ratio))
+
+
+def apply_seniority_penalty(cand: Dict[str, Any], trace: Dict[str, Any]) -> None:
+    """Penalize Junior/Jr. titles for a Senior-level JD."""
+    title = (cand.get("profile", {}) or {}).get("current_title", "") or ""
+    if JUNIOR_TITLE_PATTERN.search(title):
+        trace["seniority_penalty"] = SENIORITY_PENALTY
+    else:
+        trace["seniority_penalty"] = 0.0
