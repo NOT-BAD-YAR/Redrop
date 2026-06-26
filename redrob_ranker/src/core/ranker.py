@@ -9,7 +9,13 @@ from src.core.extractor import extract_evidence
 from src.core.normalizer import normalize_candidate
 from src.core.reasoning import generate_reasoning
 from src.core.risk_engine import evaluate_risks
-from src.core.scorer import apply_experience_penalty, apply_seniority_penalty, score_technical_fit, WEIGHTS as CAPABILITIES
+from src.core.scorer import (
+    apply_experience_penalty,
+    apply_seniority_penalty,
+    apply_title_trap_penalties,
+    score_technical_fit,
+    WEIGHTS as CAPABILITIES,
+)
 from src.core.semantic_index import (
     fuse_final_score,
     load_fusion_weights,
@@ -77,6 +83,7 @@ def process_candidate(line: str) -> Any:
         score_technical_fit(cand, trace)
         apply_experience_penalty(cand, trace)
         apply_seniority_penalty(cand, trace)
+        apply_title_trap_penalties(cand, trace)
         calculate_behavior(cand, trace)
         evaluate_risks(cand, trace)
 
@@ -100,6 +107,7 @@ def process_candidate(line: str) -> Any:
         final = max(0.0, final - (risk_penalty / 100.0))
         final *= trace["behavior"].get("active_days_multiplier", 1.0)
         final = max(0.0, final - trace.get("seniority_penalty", 0.0))
+        final *= trace.get("title_trap_multiplier", 1.0)
 
         trace["final_score"] = final
         cand["final_score"] = final

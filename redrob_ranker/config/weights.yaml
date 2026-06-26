@@ -53,6 +53,10 @@ risk_engine:
     robotics_only: 30
   expected_salary_penalty_max: 2
   junior_title_penalty: 0.25
+  title_trap_multiplier: 0.60
+  intern_trainee_multiplier: 0.70
+  title_trap_min_ai_caps: 2
+  title_trap_min_technical_fit: 20
 
 fusion_weights:
   semantic: 0.15
