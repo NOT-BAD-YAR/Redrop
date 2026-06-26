@@ -3,45 +3,20 @@
 
 import json
 import os
+import sys
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+from src.core.cross_encoder_rerank import build_candidate_text  # noqa: E402
+
 MODEL_DIR = os.path.join(ROOT, "models", "all-MiniLM-L6-v2")
 DATA_PATH = os.path.join(ROOT, "data", "candidates.jsonl")
 ARTIFACTS_DIR = os.path.join(ROOT, "artifacts")
-
-
-def build_candidate_text(cand: dict) -> str:
-    profile = cand.get("profile", {})
-    skill_names = " ".join(s.get("name", "") for s in cand.get("skills", []))
-    career_text = " ".join(
-        " ".join(
-            filter(
-                None,
-                [
-                    entry.get("title", ""),
-                    entry.get("company", ""),
-                    entry.get("description", ""),
-                ],
-            )
-        )
-        for entry in cand.get("career_history", [])
-    )
-    return " ".join(
-        filter(
-            None,
-            [
-                profile.get("current_title", ""),
-                profile.get("headline", ""),
-                profile.get("summary", ""),
-                skill_names,
-                career_text,
-            ],
-        )
-    )
 
 
 def main() -> None:

@@ -14,10 +14,12 @@ redrob_ranker/
 │   └── jd_embedding.npy
 ├── data/                    # Symlink candidates.jsonl + Job Description.md
 ├── models/
-│   └── all-MiniLM-L6-v2/    # Bundled offline embedding model (~87 MB, no internet at runtime)
+│   ├── all-MiniLM-L6-v2/    # Bundled offline embedding model (~87 MB, no internet at runtime)
+│   └── cross-encoder-ms-marco-MiniLM-L6-v2/  # Optional Stage 2 rerank model (download script)
 ├── scripts/
 │   ├── precompute_embeddings.py
-│   └── precompute_jd_embedding.py
+│   ├── precompute_jd_embedding.py
+│   └── download_cross_encoder.py
 ├── config/                  
 │   ├── dictionaries.yaml    # Stores all RegEx keyword patterns for extraction
 │   ├── templates.yaml       # Reasoning generator templates
@@ -32,6 +34,7 @@ redrob_ranker/
 │   │   ├── risk_engine.py      # Stages 9-10: Availability and Domain Risk Engines (Gates & Penalties)
 │   │   ├── scorer.py           # Stages 6-7: Aggregates capability scores into final Technical Fit
 │   │   ├── semantic_index.py   # Loads pre-computed embeddings + fusion scoring
+│   │   ├── cross_encoder_rerank.py  # Stage 2: cross-encoder rerank on top 500
 │   │   └── validator.py        # Stage 1: Evidence Validation (Consistency & Credibility)
 │   ├── models/
 │   │   ├── candidate.py        # Type hints for candidate JSON objects
@@ -102,6 +105,32 @@ python src/main.py \
 python validate_submission.py ./output/submission.csv
 ```
 
+### Optional — Stage 2 cross-encoder rerank
+
+Stage 1 (default) scores all valid candidates and outputs the top 100. Stage 2 reranks only the **top 500** Stage-1 candidates with a cross-encoder (`cross-encoder/ms-marco-MiniLM-L6-v2`), then outputs the final top 100.
+
+**Download the model once** (for offline judging):
+
+```bash
+source .venv/bin/activate
+python scripts/download_cross_encoder.py
+```
+
+This saves the model to `models/cross-encoder-ms-marco-MiniLM-L6-v2/`.
+
+**Run with Stage 2 enabled:**
+
+```bash
+source .venv/bin/activate
+
+python src/main.py \
+  --candidates ./data/candidates.jsonl \
+  --out ./output/submission.csv \
+  --use-cross-encoder true
+```
+
+If the cross-encoder model is missing, the ranker logs a warning and falls back to Stage 1 ordering. Stage 2 uses CPU only, batch size 16, and fuses scores as `0.75 * stage1_score + 0.25 * cross_norm`.
+
 > **Note:** `artifacts/candidate_embeddings.npy` (146 MB) is stored via **Git LFS**.
 > It downloads automatically on `git clone` (or `git lfs pull`). No 20-minute pre-computation needed.
 
@@ -143,4 +172,5 @@ If `artifacts/candidate_embeddings.npy` is missing, the ranker logs a warning an
 - **Stage 8 (Behavior):** Evaluates Intent, Reachability, and Demand using a multiplicative modifier (`behavior_engine.py`).
 - **Stages 9-10 (Risks & Gates):** Adds heavy point penalties for low response rates or consulting-only backgrounds. Applies hard removal Gates (`risk_engine.py`).
 - **Stages 11-13 (Rank Orchestration):** Fuses semantic + technical fit + BM25 + behavioral scores; sorts Top 100 (`ranker.py` + `semantic_index.py`).
+- **Stage 2 (optional cross-encoder):** Reranks top 500 Stage-1 candidates with JD–profile cross-encoder scores (`cross_encoder_rerank.py`).
 - **Stage 14 (Reasoning):** Outputs human-readable logic templates appended to the trace (`reasoning.py`).

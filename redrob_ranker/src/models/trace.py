@@ -46,4 +46,8 @@ class Trace:
     behavior_strengths: List[str] = field(default_factory=list)
     technical_fit: float = 0.0
     final_score: float = 0.0
+    stage1_score: float = 0.0
+    cross_score: float = 0.0
+    cross_norm: float = 0.0
+    rerank_score: float = 0.0
     reasoning_facts: List[str] = field(default_factory=list)

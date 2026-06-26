@@ -1,10 +1,12 @@
 import json
 import logging
 import multiprocessing as mp
+import time
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.core.behavior_engine import calculate_behavior
+from src.core.cross_encoder_rerank import load_cross_encoder, load_jd_text, rerank_top_k
 from src.core.extractor import extract_evidence
 from src.core.normalizer import normalize_candidate
 from src.core.reasoning import generate_reasoning
@@ -120,14 +122,27 @@ def process_candidate(line: str) -> Any:
 
 
 class CandidateRanker:
-    def __init__(self, input_file: str, output_file: str, top_n: int = 100):
+    def __init__(
+        self,
+        input_file: str,
+        output_file: str,
+        top_n: int = 100,
+        use_cross_encoder: bool = False,
+        rerank_pool_size: int = 500,
+        cross_encoder_batch_size: int = 16,
+    ):
         self.input_file = input_file
         self.output_file = output_file
         self.top_n = top_n
+        self.use_cross_encoder = use_cross_encoder
+        self.rerank_pool_size = rerank_pool_size
+        self.cross_encoder_batch_size = cross_encoder_batch_size
         self.embed_map: Dict[str, Any] = {}
         self.jd_vec: Optional[Any] = None
         self.semantic_ready: bool = False
         self.fusion_weights: Dict[str, float] = load_fusion_weights()
+        self.stage1_seconds: float = 0.0
+        self.stage2_seconds: float = 0.0
 
     def _load_semantic_artifacts(self) -> None:
         print("Loading semantic artifacts from disk...")
@@ -137,7 +152,8 @@ class CandidateRanker:
         else:
             print("Semantic index unavailable — semantic_score will be 0.0")
 
-    def run(self):
+    def run(self) -> Tuple[float, float]:
+        stage1_start = time.time()
         self._load_semantic_artifacts()
 
         print(f"Processing candidates from {self.input_file}...")
@@ -170,9 +186,39 @@ class CandidateRanker:
             reverse=True,
         )
 
-        top_candidates = valid_candidates[: self.top_n]
+        self.stage1_seconds = time.time() - stage1_start
+        print(f"Stage 1 completed in {self.stage1_seconds:.2f} seconds.")
 
-        max_score = max((c.get("final_score", 0.0) for c in valid_candidates), default=1.0)
+        stage2_start = time.time()
+        if self.use_cross_encoder:
+            rerank_pool = valid_candidates[: self.rerank_pool_size]
+            model = load_cross_encoder()
+            if model is None:
+                print("Cross-encoder model unavailable — skipping Stage 2 rerank.")
+                top_candidates = valid_candidates[: self.top_n]
+            else:
+                jd_text = load_jd_text()
+                reranked_pool, ok = rerank_top_k(
+                    jd_text,
+                    rerank_pool,
+                    model,
+                    batch_size=self.cross_encoder_batch_size,
+                )
+                if ok:
+                    top_candidates = reranked_pool[: self.top_n]
+                    self.stage2_seconds = time.time() - stage2_start
+                    print(
+                        f"Stage 2 cross-encoder rerank completed in "
+                        f"{self.stage2_seconds:.2f} seconds "
+                        f"({len(rerank_pool)} candidates)."
+                    )
+                else:
+                    top_candidates = valid_candidates[: self.top_n]
+        else:
+            top_candidates = valid_candidates[: self.top_n]
+
+        score_source = top_candidates if self.use_cross_encoder else valid_candidates
+        max_score = max((float(c.get("final_score", 0.0) or 0.0) for c in score_source), default=1.0)
         if max_score == 0:
             max_score = 1.0
 
@@ -198,3 +244,4 @@ class CandidateRanker:
                 writer.writerow([cand_id, rank, score, reasoning])
 
         print(f"Top {self.top_n} candidates written to {self.output_file}.")
+        return self.stage1_seconds, self.stage2_seconds
