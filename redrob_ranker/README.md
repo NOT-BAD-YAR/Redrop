@@ -15,7 +15,7 @@ redrob_ranker/
 ├── data/                    # Symlink candidates.jsonl + Job Description.md
 ├── models/
 │   ├── all-MiniLM-L6-v2/    # Bundled offline embedding model (~87 MB, no internet at runtime)
-│   └── cross-encoder-ms-marco-MiniLM-L6-v2/  # Optional Stage 2 rerank model (download script)
+│   └── cross-encoder-ms-marco-MiniLM-L6-v2/  # Bundled Stage 2 rerank model (~87 MB, offline)
 ├── scripts/
 │   ├── precompute_embeddings.py
 │   ├── precompute_jd_embedding.py
@@ -109,7 +109,9 @@ python validate_submission.py ./output/submission.csv
 
 Stage 1 (default) scores all valid candidates and outputs the top 100. Stage 2 reranks only the **top 500** Stage-1 candidates with a cross-encoder (`cross-encoder/ms-marco-MiniLM-L6-v2`), then outputs the final top 100.
 
-**Download the model once** (for offline judging):
+The cross-encoder model is **committed under `models/cross-encoder-ms-marco-MiniLM-L6-v2/`** (~87 MB). No download needed after clone.
+
+To re-download or refresh the model:
 
 ```bash
 source .venv/bin/activate
