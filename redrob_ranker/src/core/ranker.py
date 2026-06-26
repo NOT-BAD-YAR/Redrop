@@ -9,7 +9,7 @@ from src.core.behavior_engine import calculate_behavior
 from src.core.cross_encoder_rerank import load_cross_encoder, load_jd_text, rerank_top_k
 from src.core.extractor import extract_evidence
 from src.core.normalizer import normalize_candidate
-from src.core.reasoning import generate_reasoning
+from src.core.reasoning import generate_reasoning, render_reasoning
 from src.core.risk_engine import evaluate_risks
 from src.core.scorer import (
     apply_experience_penalty,
@@ -240,7 +240,7 @@ class CandidateRanker:
                 rank = idx + 1
                 cand_id = cand.get("candidate_id", "")
                 score = f"{_rounded_csv_score(cand):.3f}"
-                reasoning = " ".join(cand.get("trace", {}).get("reasoning_facts", []))
+                reasoning = render_reasoning(cand, cand.get("trace", {}), rank)
                 writer.writerow([cand_id, rank, score, reasoning])
 
         print(f"Top {self.top_n} candidates written to {self.output_file}.")
