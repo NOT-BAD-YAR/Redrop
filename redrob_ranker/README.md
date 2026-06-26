@@ -33,16 +33,44 @@ redrob_ranker/
 
 ## Setup & Execution
 
+### Mac setup (Python 3.11 required)
+
+Do **not** use system Python 3.14 — `pydantic` will fail to install. Use Homebrew Python 3.11:
+
+```bash
+cd Redrop/redrob_ranker
+/opt/homebrew/bin/python3.11 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Data is symlinked under `data/` (465 MB `candidates.jsonl` is not copied):
+
+```bash
+# Already set up if you followed Phase 1; recreate with:
+mkdir -p data
+ln -sf "../../[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl" data/candidates.jsonl
+ln -sf "../../[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/Job Description.md" "data/Job Description.md"
+```
+
+Activate the venv in every new terminal: `source .venv/bin/activate`
+
 ### 1. Install Dependencies
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
 ### 2. Run the Pipeline
 The `main.py` script utilizes Python's `multiprocessing` to stream and process candidates in parallel without blowing up the memory footprint.
 
-```powershell
-python src/main.py --candidates ..\candidates.jsonl --out output\submission.csv
+```bash
+python src/main.py --candidates data/candidates.jsonl --out output/submission.csv
+```
+
+### 3. Validate output
+```bash
+python validate_submission.py output/submission.csv
 ```
 
 ## Processing Stages

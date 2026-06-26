@@ -44,6 +44,8 @@ def extract_evidence(cand: Dict[str, Any], trace: Dict[str, Any]) -> None:
     """Stages 2-5: Evidence Extraction, Ownership, Recency, Production"""
     for cap_tier, cap_dict in [("T1", TIER_1_REGEX), ("T2", TIER_2_REGEX), ("T3", TIER_3_REGEX)]:
         for cap, regex in cap_dict.items():
+            if cap not in trace["capabilities"]:
+                continue
             best_score = 0.0
             evidence_count = 0
             recency_sum = 0.0

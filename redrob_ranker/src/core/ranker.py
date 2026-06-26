@@ -7,7 +7,7 @@ from src.models.trace import Trace
 from src.core.normalizer import normalize_candidate
 from src.core.validator import validate_evidence
 from src.core.extractor import extract_evidence
-from src.core.scorer import score_technical_fit, WEIGHTS as CAPABILITIES
+from src.core.scorer import score_technical_fit, apply_experience_penalty, WEIGHTS as CAPABILITIES
 from src.core.behavior_engine import calculate_behavior
 from src.core.risk_engine import evaluate_risks
 from src.core.reasoning import generate_reasoning
@@ -34,15 +34,18 @@ def process_candidate(line: str) -> Any:
         validate_evidence(cand, trace)
         extract_evidence(cand, trace)
         score_technical_fit(cand, trace)
+        apply_experience_penalty(cand, trace)
         calculate_behavior(cand, trace)
         evaluate_risks(cand, trace)
         
         # Stage 11: Final Score
         final = (
-            trace["technical_fit"] * 
-            trace["behavior"]["final_multiplier"] * 
-            trace["credibility"]["final_multiplier"]
-        ) - max(trace["risks"]["availability_penalty"], trace["risks"]["domain_penalty"])
+            trace["technical_fit"]
+            * trace["behavior"]["final_multiplier"]
+            * trace["credibility"]["final_multiplier"]
+        )
+        final *= trace["behavior"].get("active_days_multiplier", 1.0)
+        final -= max(trace["risks"]["availability_penalty"], trace["risks"]["domain_penalty"])
         
         trace["final_score"] = final
         cand["final_score"] = final
@@ -72,41 +75,45 @@ class CandidateRanker:
                         valid_candidates.append(cand)
                         
         print(f"Processed {len(valid_candidates)} valid candidates. Sorting...")
-        
-        # Stage 13: Sorting
+
+        # Stage 13: Sort by score descending; stable tie-break via candidate_id ascending.
+        valid_candidates.sort(key=lambda x: x["candidate_id"])
         valid_candidates.sort(
             key=lambda x: (
                 x["final_score"],
                 x["trace"]["credibility"]["final_multiplier"],
                 x["trace"]["behavior"]["final_multiplier"],
                 x["trace"]["technical_fit"],
-                x["candidate_id"]
             ),
-            reverse=True
+            reverse=True,
         )
-        
-        top_candidates = valid_candidates[:self.top_n]
-        
+
+        top_candidates = valid_candidates[: self.top_n]
+
         # Calculate top score for normalization
         max_score = max((c.get("final_score", 0.0) for c in valid_candidates), default=60.0)
-        if max_score == 0: max_score = 60.0
-        
+        if max_score == 0:
+            max_score = 60.0
+
+        def _rounded_csv_score(cand: Dict[str, Any]) -> float:
+            raw_score = cand.get("final_score", 0.0)
+            normalized = min(1.0, max(0.0, raw_score / max_score))
+            return round(normalized, 3)
+
+        # Re-order top 100 so equal 3-decimal CSV scores tie-break by candidate_id ascending.
+        top_candidates.sort(
+            key=lambda x: (-_rounded_csv_score(x), x.get("candidate_id", ""))
+        )
+
         # Write to CSV
         import csv
-        with open(self.output_file, "w", encoding="utf-8", newline='') as out:
+        with open(self.output_file, "w", encoding="utf-8", newline="") as out:
             writer = csv.writer(out)
             writer.writerow(["candidate_id", "rank", "score", "reasoning"])
             for idx, cand in enumerate(top_candidates):
                 rank = idx + 1
                 cand_id = cand.get("candidate_id", "")
-                
-                # Normalize score relative to the top performer
-                raw_score = cand.get("final_score", 0.0)
-                normalized_score = min(1.0, max(0.0, raw_score / max_score))
-                
-                # Format to exactly 3 decimal places
-                score = f"{normalized_score:.3f}"
-                
+                score = f"{_rounded_csv_score(cand):.3f}"
                 reasoning = " ".join(cand.get("trace", {}).get("reasoning_facts", []))
                 writer.writerow([cand_id, rank, score, reasoning])
             

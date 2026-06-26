@@ -8,16 +8,27 @@ technical_fit:
     Recommendation: 5
     Embeddings: 5
     Vector Search: 5
-    LTR: 5
     Fine Tuning: 3
     Product ML: 3
     Distributed Systems: 2
     HR Tech / Marketplace: 2
     Open Source: 1
 
+experience_engine:
+  ideal_min: 5
+  ideal_max: 9
+  soft_penalty_per_year_under: 0.08
+  soft_penalty_per_year_over: 0.05
+  hard_floor_yoe: 1.5
+
 behavior_engine:
-  min_multiplier: 0.70
+  min_multiplier: 0.55
   max_multiplier: 1.15
+  active_days_penalty:
+    threshold_moderate: 90
+    threshold_severe: 180
+    penalty_moderate: 0.10
+    penalty_severe: 0.20
   groups:
     market_intent: 0.25
     reachability: 0.25
@@ -34,10 +45,10 @@ credibility_engine:
 
 risk_engine:
   domain:
-    consulting_only: 15
-    langchain_only: 20
-    framework_centric: 20
-    cv_only: 20
-    speech_only: 20
-    robotics_only: 20
+    consulting_only: 30
+    langchain_only: 35
+    framework_centric: 30
+    cv_only: 30
+    speech_only: 30
+    robotics_only: 30
   expected_salary_penalty_max: 2
