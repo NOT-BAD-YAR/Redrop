@@ -33,6 +33,15 @@ def main():
     )
     args = parser.parse_args()
 
+    if "--candidates" not in sys.argv:
+        user_input = input(f"Enter path to candidates file or directory [default: {args.candidates}]: ").strip().strip('"\'')
+        if user_input:
+            args.candidates = user_input
+
+    if not os.path.exists(args.candidates):
+        print(f"Error: Candidate input path not found at '{args.candidates}'.")
+        sys.exit(1)
+
     start_time = time.time()
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

@@ -1,6 +1,7 @@
 import json
 import logging
 import multiprocessing as mp
+import os
 import time
 from dataclasses import asdict
 from typing import Any, Dict, List, Optional, Tuple
@@ -49,12 +50,63 @@ def _init_worker(
     _SEMANTIC_READY = semantic_ready
 
 
-def process_candidate(line: str) -> Any:
-    if not line.strip():
-        return None
-    try:
-        cand = json.loads(line)
-    except Exception:
+def _iter_candidate_items(input_path: str):
+    if os.path.isdir(input_path):
+        for root, _, files in os.walk(input_path):
+            for file in sorted(files):
+                file_path = os.path.join(root, file)
+                if file.endswith(".jsonl"):
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if line.strip():
+                                yield line
+                elif file.endswith(".json"):
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                    if not content:
+                        continue
+                    try:
+                        data = json.loads(content)
+                        if isinstance(data, list):
+                            for obj in data:
+                                yield obj
+                        elif isinstance(data, dict):
+                            yield data
+                    except Exception:
+                        for line in content.splitlines():
+                            if line.strip():
+                                yield line
+    else:
+        if input_path.endswith(".json") and not input_path.endswith(".jsonl"):
+            with open(input_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+            try:
+                data = json.loads(content)
+                if isinstance(data, list):
+                    for obj in data:
+                        yield obj
+                elif isinstance(data, dict):
+                    yield data
+                return
+            except Exception:
+                pass
+        with open(input_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    yield line
+
+
+def process_candidate(item: Any) -> Any:
+    if isinstance(item, str):
+        if not item.strip():
+            return None
+        try:
+            cand = json.loads(item)
+        except Exception:
+            return None
+    elif isinstance(item, dict):
+        cand = item
+    else:
         return None
 
     trace = asdict(Trace())
@@ -70,8 +122,8 @@ def process_candidate(line: str) -> Any:
 
     cand["trace"] = trace
 
-    sig = cand.get("redrob_signals", {})
-    sal = sig.get("expected_salary_range_inr_lpa", {})
+    sig = cand.get("redrob_signals") or {}
+    sal = sig.get("expected_salary_range_inr_lpa") or {}
     sal_min = sal.get("min", 0) or 0
     sal_max = sal.get("max", 9999) or 9999
     if sal_min > sal_max:
@@ -91,7 +143,7 @@ def process_candidate(line: str) -> Any:
 
         cand_id = cand.get("candidate_id", "")
         trace["semantic_score"] = semantic_similarity(
-            cand_id, _EMBED_MAP, _JD_VEC, _SEMANTIC_READY
+            cand_id, _EMBED_MAP, _JD_VEC, _SEMANTIC_READY, cand=cand
         )
         trace["bm25_score"] = 0.0
 
@@ -159,7 +211,7 @@ class CandidateRanker:
         print(f"Processing candidates from {self.input_file}...")
         valid_candidates: List[Dict[str, Any]] = []
 
-        with open(self.input_file, "r", encoding="utf-8") as f, mp.Pool(
+        with mp.Pool(
             initializer=_init_worker,
             initargs=(
                 self.embed_map,
@@ -168,7 +220,7 @@ class CandidateRanker:
                 self.semantic_ready,
             ),
         ) as pool:
-            for cand in pool.imap_unordered(process_candidate, f, chunksize=1000):
+            for cand in pool.imap_unordered(process_candidate, _iter_candidate_items(self.input_file), chunksize=1000):
                 if cand is not None:
                     if not cand["trace"]["gates"]:
                         valid_candidates.append(cand)

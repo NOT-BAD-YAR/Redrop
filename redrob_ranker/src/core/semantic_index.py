@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import yaml
@@ -23,11 +23,12 @@ DEFAULT_FUSION_WEIGHTS = {
 def load_fusion_weights() -> Dict[str, float]:
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-        weights = cfg.get("fusion_weights", {})
-        return {k: float(weights.get(k, DEFAULT_FUSION_WEIGHTS[k])) for k in DEFAULT_FUSION_WEIGHTS}
-    except (OSError, TypeError, ValueError):
-        return dict(DEFAULT_FUSION_WEIGHTS)
+            data = yaml.safe_load(f)
+            if data and "fusion_weights" in data:
+                return data["fusion_weights"]
+    except Exception as e:
+        logger.warning("Failed to load weights.yaml (%s) — using defaults", e)
+    return dict(DEFAULT_FUSION_WEIGHTS)
 
 
 def load_semantic_artifacts() -> Tuple[Dict[str, np.ndarray], Optional[np.ndarray], bool]:
@@ -36,36 +37,35 @@ def load_semantic_artifacts() -> Tuple[Dict[str, np.ndarray], Optional[np.ndarra
     ids_path = os.path.join(ARTIFACTS_DIR, "candidate_ids.json")
     jd_path = os.path.join(ARTIFACTS_DIR, "jd_embedding.npy")
 
-    if not os.path.isfile(emb_path):
-        logger.warning(
-            "artifacts/candidate_embeddings.npy not found — semantic_score will be 0.0"
-        )
-        return {}, None, False
-
-    embeddings = np.load(emb_path)
-    with open(ids_path, "r", encoding="utf-8") as f:
-        candidate_ids = json.load(f)
-
-    if len(candidate_ids) != embeddings.shape[0]:
-        logger.warning(
-            "candidate_ids.json length (%d) != embeddings rows (%d) — semantic disabled",
-            len(candidate_ids),
-            embeddings.shape[0],
-        )
-        return {}, None, False
-
-    embed_map = dict(zip(candidate_ids, embeddings))
+    embed_map = {}
+    if os.path.isfile(emb_path) and os.path.isfile(ids_path):
+        try:
+            embeddings = np.load(emb_path)
+            with open(ids_path, "r", encoding="utf-8") as f:
+                candidate_ids = json.load(f)
+            if len(candidate_ids) == embeddings.shape[0]:
+                embed_map = dict(zip(candidate_ids, embeddings))
+            else:
+                logger.warning(
+                    "candidate_ids length (%d) != embeddings rows (%d)",
+                    len(candidate_ids),
+                    embeddings.shape[0],
+                )
+        except Exception as e:
+            logger.warning("Failed loading candidate embeddings: %s", e)
 
     if not os.path.isfile(jd_path):
-        logger.warning(
-            "artifacts/jd_embedding.npy not found — semantic_score will be 0.0"
-        )
+        logger.warning("artifacts/jd_embedding.npy not found — semantic_score will be 0.0")
         return embed_map, None, False
 
-    jd_embedding = np.load(jd_path)[0]
+    try:
+        jd_embedding = np.load(jd_path)[0]
+    except Exception as e:
+        logger.warning("Failed loading jd_embedding.npy: %s", e)
+        return embed_map, None, False
 
     logger.info(
-        "Loaded semantic index: %d candidates, JD vector dim %d",
+        "Loaded semantic index: %d precomputed candidates, JD vector dim %d",
         len(embed_map),
         jd_embedding.shape[0],
     )
@@ -77,10 +77,22 @@ def semantic_similarity(
     embed_map: Dict[str, np.ndarray],
     jd_vec: Optional[np.ndarray],
     semantic_ready: bool,
+    cand: Optional[Dict[str, Any]] = None,
 ) -> float:
     if not semantic_ready or jd_vec is None:
         return 0.0
     vec = embed_map.get(cand_id)
+    if vec is None and cand is not None:
+        try:
+            from src.core.embeddings import get_embedding_model
+            from src.core.cross_encoder_rerank import build_candidate_text
+            model = get_embedding_model()
+            text = build_candidate_text(cand)
+            vec = model.encode([text], convert_to_numpy=True, normalize_embeddings=True)[0]
+            embed_map[cand_id] = vec
+        except Exception as e:
+            logger.warning("Dynamic fallback embedding failed for %s: %s", cand_id, e)
+            return 0.0
     if vec is None:
         return 0.0
     return float(np.dot(vec, jd_vec))

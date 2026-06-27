@@ -1,1 +1,3 @@
 redrob_ranker/data/candidates.jsonl
+.venv/
+venv/
