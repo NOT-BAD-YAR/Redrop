@@ -40,7 +40,7 @@ def load_semantic_artifacts() -> Tuple[Dict[str, np.ndarray], Optional[np.ndarra
     embed_map = {}
     if os.path.isfile(emb_path) and os.path.isfile(ids_path):
         try:
-            embeddings = np.load(emb_path)
+            embeddings = np.load(emb_path, allow_pickle=True)
             with open(ids_path, "r", encoding="utf-8") as f:
                 candidate_ids = json.load(f)
             if len(candidate_ids) == embeddings.shape[0]:
@@ -59,7 +59,7 @@ def load_semantic_artifacts() -> Tuple[Dict[str, np.ndarray], Optional[np.ndarra
         return embed_map, None, False
 
     try:
-        jd_embedding = np.load(jd_path)[0]
+        jd_embedding = np.load(jd_path, allow_pickle=True)[0]
     except Exception as e:
         logger.warning("Failed loading jd_embedding.npy: %s", e)
         return embed_map, None, False

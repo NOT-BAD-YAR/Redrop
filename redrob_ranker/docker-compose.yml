@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  ranker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: redrob-ranker:latest
+    container_name: redrob_ranker
+    volumes:
+      # Map host data folder to container data folder
+      - ./data:/app/data
+      # Map host output folder to container output folder
+      - ./output:/app/output
+    # Default execution parameters (can be overridden when running docker compose run ranker <args>)
+    command: ["--candidates", "/app/data/candidates.jsonl", "--out", "/app/output/submission.csv"]
