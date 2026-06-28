@@ -20,25 +20,37 @@ def _str2bool(value: str) -> bool:
 
 
 def main():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
     import argparse
+    default_candidates = os.getenv("CANDIDATES_PATH", os.path.join("data", "candidates.jsonl"))
+    default_out = os.getenv("OUTPUT_PATH", os.path.join("output", "submission.csv"))
+    default_top_n = int(os.getenv("TOP_N", "100"))
+    default_use_cross_encoder = _str2bool(os.getenv("USE_CROSS_ENCODER", "false"))
+
     parser = argparse.ArgumentParser(description="Redrob Candidate Ranking System")
-    parser.add_argument("--candidates", type=str, default=r"data\candidates.jsonl", help="Path to input candidates.jsonl")
-    parser.add_argument("--out", type=str, default=r"output\submission.csv", help="Path to output CSV")
-    parser.add_argument("--top_n", type=int, default=100, help="Number of top candidates to output")
+    parser.add_argument("--candidates", type=str, default=default_candidates, help="Path to input candidates.jsonl")
+    parser.add_argument("--out", type=str, default=default_out, help="Path to output CSV")
+    parser.add_argument("--top_n", type=int, default=default_top_n, help="Number of top candidates to output")
     parser.add_argument(
         "--use-cross-encoder",
         type=_str2bool,
-        default=False,
+        default=default_use_cross_encoder,
         help="Enable Stage 2 cross-encoder rerank on top 500 (true/false)",
     )
     args = parser.parse_args()
 
-    if "--candidates" not in sys.argv:
+    if not os.path.exists(args.candidates) and sys.stdin.isatty():
         user_input = input(f"Enter path to candidates file or directory [default: {args.candidates}]: ").strip().strip('"\'')
         if user_input:
             args.candidates = user_input
 
     if not os.path.exists(args.candidates):
+
         print(f"Error: Candidate input path not found at '{args.candidates}'.")
         sys.exit(1)
 
