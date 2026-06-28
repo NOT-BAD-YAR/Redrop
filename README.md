@@ -10,13 +10,39 @@ An advanced, multi-stage AI candidate evaluation engine designed to rank 100,000
 
 This repository includes bundled offline embedding models and precomputed semantic vectors (~170 MB total). Because we use large files, **Git Large File Storage (Git LFS)** is required.
 
-To clone the repository correctly with all required model files:
+### 1. Install Git LFS for Your Operating System
+Open your terminal or command prompt and run the relevant command for your system:
+
+**🌐 Windows**
+The most direct method is using the built-in Windows Package Manager:
 ```bash
-# 1. Ensure Git LFS is installed on your system
+winget install -e --id GitHub.GitLFS
+```
+Alternatively, you can download the installer directly from the [Official Git LFS Website](https://git-lfs.com) and run the executable.
+
+**🍎 macOS**
+If you use Homebrew, run:
+```bash
+brew install git-lfs
+```
+If you use MacPorts, run:
+```bash
+port install git-lfs
+```
+
+**🐧 Linux (Ubuntu/Debian)**
+```bash
+sudo apt update && sudo apt install git-lfs
+```
+
+### 2. Initialize and Clone the Repository
+Once installed, initialize Git LFS and clone the project:
+```bash
+# 1. Initialize Git LFS on your system
 git lfs install
 
 # 2. Clone the repository
-git clone <repository_url>
+git clone https://github.com/NOT-BAD-YAR/Redrop.git
 cd Redrop
 
 # 3. Pull LFS files (if not automatically pulled during clone)

@@ -106,9 +106,36 @@ redrob_ranker/
 
 ### Prerequisites: Git Large File Storage (Git LFS)
 Because offline vector embeddings are stored in this repository, you must install Git LFS before cloning:
+
+#### 1. Install Git LFS for Your Operating System
+Open your terminal or command prompt and run the relevant command for your system:
+
+**🌐 Windows**
+The most direct method is using the built-in Windows Package Manager:
+```bash
+winget install -e --id GitHub.GitLFS
+```
+Alternatively, you can download the installer directly from the [Official Git LFS Website](https://git-lfs.com) and run the executable.
+
+**🍎 macOS**
+If you use Homebrew, run:
+```bash
+brew install git-lfs
+```
+If you use MacPorts, run:
+```bash
+port install git-lfs
+```
+
+**🐧 Linux (Ubuntu/Debian)**
+```bash
+sudo apt update && sudo apt install git-lfs
+```
+
+#### 2. Initialize and Clone the Repository
 ```bash
 git lfs install
-git clone <repo_url>
+git clone https://github.com/NOT-BAD-YAR/Redrop.git
 cd Redrop/redrob_ranker
 git lfs pull
 ```
