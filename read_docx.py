@@ -15,3 +15,4 @@ def read_docx(path):
 with open('output_spec.txt', 'w', encoding='utf-8') as f:
     f.write("=== SUBMISSION SPEC ===\n")
     f.write(read_docx("submission_spec.docx"))
+
