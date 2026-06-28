@@ -2,93 +2,104 @@
 
 An advanced, multi-stage AI candidate evaluation engine designed to rank 100,000+ applicants for the **Senior AI Engineer** role. The system processes profile data against a 14-stage filtering and scoring pipeline, identifying high-impact engineering talent while filtering out keyword honeypots and risk factors.
 
----
-
-## Key Features & Working Functions
-
-* **14-Stage Evaluation Pipeline:** Integrates schema validation, credibility checking, taxonomy-based capability extraction (Retrieval, Ranking, Evaluation, Matching), ownership weighting ("built" vs "assisted"), and recency scoring.
-* **Hybrid Score Fusion:** Combines offline semantic vector embeddings (`all-MiniLM-L6-v2`), BM25 lexical search, technical fit scores, and behavioral signals (market intent, reachability).
-* **Stage 2 Cross-Encoder Reranking:** Optional precision reranking of the top 500 candidates using an offline cross-encoder (`ms-marco-MiniLM-L6-v2`).
-* **Environment Configuration (`.env`):** Clean, zero-code configuration via `.env` files for customized input/output paths and runtime flags.
-* **Docker & Compose Support:** Fully containerized pipeline with automatic host volume mounting for seamless execution across different OS environments.
-* **Automated Output Validation:** Built-in validation script ensuring strict adherence to competition submission schemas and sorting criteria.
+👉 **For comprehensive technical architecture, detailed scoring formulas, and stage-by-stage breakdowns, please see the [Detailed Technical Documentation (redrob_ranker/README.md)](redrob_ranker/README.md).**
 
 ---
 
-## Quick Start (Simple & Clear)
+## Important Note on Cloning & Git LFS
 
-All project source code and configuration files reside in the `redrob_ranker` directory.
+This repository includes bundled offline embedding models and precomputed semantic vectors (~170 MB total). Because we use large files, **Git Large File Storage (Git LFS)** is required.
 
-### 1. Environment Setup
+To clone the repository correctly with all required model files:
+```bash
+# 1. Ensure Git LFS is installed on your system
+git lfs install
+
+# 2. Clone the repository
+git clone <repository_url>
+cd Redrop
+
+# 3. Pull LFS files (if not automatically pulled during clone)
+git lfs pull
+```
+
+---
+
+## Quick Start: Running via Docker (Recommended)
+
+You can run the entire evaluation system immediately using our pre-built Docker image: **`notbad007/redrob-ranker`**. You do not need to install Python or local dependencies. 
+
+When running via Docker, you **must explicitly map volume paths** from your local machine to the container so it can read your candidate data and save the final CSV submission. The container expects data at `/app/data` and writes output to `/app/output`.
+
+### Method 1: Terminal Way (`docker run`)
+
+Open your terminal and run the container by mapping your local folders (`-v`):
+
+```bash
+docker run --rm \
+  -v /path/to/your/local/data:/app/data \
+  -v /path/to/your/local/output:/app/output \
+  notbad007/redrob-ranker:latest
+```
+*(Replace `/path/to/your/local/data` with the folder containing `candidates.jsonl` on your computer, and `/path/to/your/local/output` with where you want `submission.csv` saved.)*
+
+**Optional Custom Arguments & Environment Variables:**
+You can pass custom flags or environment variables (`-e`):
+```bash
+docker run --rm \
+  -e USE_CROSS_ENCODER=true \
+  -e TOP_N=100 \
+  -v /path/to/your/local/data:/app/data \
+  -v /path/to/your/local/output:/app/output \
+  notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
+```
+
+---
+
+### Method 2: GUI Way (Docker Desktop)
+
+If you prefer using Docker Desktop's graphical interface instead of the terminal:
+
+1. Open **Docker Desktop** and navigate to the search bar or the **Images** tab.
+2. Search for or pull the image: **`notbad007/redrob-ranker:latest`**.
+3. Click the **Run** button next to the image.
+4. Before starting, expand the **Optional settings** (or **Advanced settings**) section.
+5. Under **Volumes / Host path mapping**, add two mappings:
+   * **Host Path 1:** Select your local folder containing `candidates.jsonl` ➔ **Container Path:** `/app/data`
+   * **Host Path 2:** Select your destination folder for results ➔ **Container Path:** `/app/output`
+6. *(Optional)* Under **Environment variables**, add any desired overrides (e.g., Variable: `USE_CROSS_ENCODER`, Value: `true`).
+7. Click **Run**. The container will process the profiles and place `submission.csv` directly into your local destination folder!
+
+---
+
+## Quick Start: Running via Local Python Setup
+
+If you prefer running directly on your machine without Docker:
 
 ```bash
 cd redrob_ranker
 
-# Pull precomputed offline embeddings via Git LFS
-git lfs pull
-
-# Create and activate virtual environment (Python 3.11 recommended)
+# 1. Create and activate virtual environment (Python 3.11 recommended)
 python -m venv .venv
 # Windows: .venv\Scripts\activate | macOS/Linux: source .venv/bin/activate
 
-# Install dependencies
+# 2. Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
-```
 
-### 2. Configure Settings (.env)
-
-Copy the example configuration file to set up default file paths and options:
-
-```bash
-# Windows (PowerShell)
-copy .env.example .env
-
-# macOS / Linux
+# 3. Setup environment configuration
 cp .env.example .env
-```
 
-You can open `.env` to tweak parameters like `TOP_N`, `CANDIDATES_PATH`, or enable `USE_CROSS_ENCODER=true`.
-
-### 3. Run the Ranking Pipeline
-
-Run the ranker directly. It will automatically load variables from `.env`:
-
-```bash
+# 4. Execute the ranking pipeline
 python src/main.py
-```
 
-*To override `.env` settings via command line arguments:*
-```bash
-python src/main.py --candidates ./data/candidates.jsonl --out ./output/submission.csv --top_n 100 --use-cross-encoder true
-```
-
-### 4. Validate the Submission
-
-Verify that your generated CSV strictly meets competition formatting, sorting, and header rules:
-
-```bash
+# 5. Validate your generated submission file
 python validate_submission.py ./output/submission.csv
 ```
 
 ---
 
-## Running via Docker (Alternative)
+## Detailed System Documentation
 
-If you prefer a containerized setup without installing local Python dependencies:
-
-```bash
-cd redrob_ranker
-
-# Build and execute the ranker using Docker Compose
-docker compose up --build
-```
-
-The container automatically maps `./data` and `./output` to your local host directory, outputting the results to `redrob_ranker/output/submission.csv`.
-
----
-
-## Detailed Documentation
-
-For an in-depth breakdown of scoring weights, taxonomy dictionaries, risk penalty calculations, and helper scripts (like embedding pre-computation), refer to the comprehensive guide:
-👉 **[redrob_ranker/README.md](redrob_ranker/README.md)**
+To explore the underlying architecture, technology stack, and full working process of the 14-stage scoring pipeline, please read our complete technical guide:
+👉 **[Click here to view the Technical Architecture & Process Guide (redrob_ranker/README.md)](redrob_ranker/README.md)**

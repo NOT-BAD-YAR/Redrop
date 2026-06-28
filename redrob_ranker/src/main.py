@@ -3,7 +3,9 @@ import os
 import time
 
 # Add root directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.ranker import CandidateRanker
 
@@ -19,10 +21,28 @@ def _str2bool(value: str) -> bool:
     raise ValueError(f"Invalid boolean value: {value}")
 
 
+def _resolve_path(path_str: str) -> str:
+    if not path_str or os.path.isabs(path_str):
+        return path_str
+    if os.path.exists(path_str):
+        return os.path.abspath(path_str)
+    root_path = os.path.join(PROJECT_ROOT, path_str)
+    if os.path.exists(root_path):
+        return os.path.abspath(root_path)
+    norm_parts = os.path.normpath(path_str).lstrip(os.sep).split(os.sep)
+    if norm_parts[0] in ("data", "output", "artifacts", "models", "config", "scripts", "src"):
+        return os.path.abspath(root_path)
+    return os.path.abspath(path_str)
+
+
 def main():
     try:
         from dotenv import load_dotenv
-        load_dotenv()
+        env_path = os.path.join(PROJECT_ROOT, ".env")
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+        else:
+            load_dotenv()
     except ImportError:
         pass
 
@@ -44,10 +64,13 @@ def main():
     )
     args = parser.parse_args()
 
+    args.candidates = _resolve_path(args.candidates)
+    args.out = _resolve_path(args.out)
+
     if not os.path.exists(args.candidates) and sys.stdin.isatty():
         user_input = input(f"Enter path to candidates file or directory [default: {args.candidates}]: ").strip().strip('"\'')
         if user_input:
-            args.candidates = user_input
+            args.candidates = _resolve_path(user_input)
 
     if not os.path.exists(args.candidates):
 

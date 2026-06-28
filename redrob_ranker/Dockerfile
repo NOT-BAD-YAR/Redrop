@@ -21,6 +21,7 @@ COPY src/ ./src/
 COPY config/ ./config/
 COPY artifacts/ ./artifacts/
 COPY models/ ./models/
+COPY validate_submission.py ./validate_submission.py
 
 # Create mount points for external data and output
 RUN mkdir -p /app/data /app/output
