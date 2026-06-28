@@ -1,0 +1,105 @@
+# Redrob Hackathon — Submission Metadata Template
+#
+# Copy this file to your repo root as `submission_metadata.yaml` and fill it in.
+# The fields here should match what you submit via the portal at upload time.
+# Stage 3 review uses this file to verify your portal metadata.
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Quad_Core"  # Used in leaderboard and announcements
+
+primary_contact:
+  name: "Kavin C"
+  email: "727724eucy042@skcet.ac.in"   # Used for all organizer communication
+  phone: "+91-8610866523"        # Used for top-50 / top-10 outreach
+
+team_members:
+  - name: "Kavin c"
+    email: "727724eucy042@skcet.ac.in"
+    role: "ML & Semantic Ranking Engineer"          # Optional, e.g. "Team Lead", "Backend", "Data"
+  - name: "Gokula Kannan S"
+    email: "727724eucy025@skcet.ac.in"
+    role: "Pipeline & Scoring Engineer"
+  - name: "Ganga Rukmani A"
+    email: "727724eucy022@skcet.ac.in"
+    role: "Behavioral Intelligence & Risk Engineer"
+  - name: "Hariharan A"
+    email: "727724eucy032@skcet.ac.in"
+    role: "Explainability & DevOps Engineer"
+  # Add more members as needed; solo participants list just one member
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/NOT-BAD-YAR/Redrop.git"
+# Required. Must be reachable. Private repos OK if you can grant organizer
+# access at Stage 3 (the email to add will be communicated then).
+
+sandbox_link: "https://hub.docker.com/r/notbad007/redrob-ranker"
+# Required. A working hosted environment where the ranker can be run on a small
+# candidate sample. See Section 10.5 of submission_spec.md for acceptable
+# platforms (HuggingFace Spaces, Streamlit Cloud, Replit, Colab, Docker, Binder).
+
+reproduce_command: "docker run -v $(pwd)/data:/app/data -v $(pwd)/output:/app/output notbad007/redrob-ranker"
+# The single command that produces submission.csv from candidates.jsonl.
+# Should run end-to-end within 5 minutes on CPU with 16GB RAM and no network.
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "MacBook Air M1"                    # Or: "AWS EC2 c5.4xlarge", "Local Linux box", etc.
+  cpu_cores: 8                                  # Number of CPU cores used
+  ram_gb: 8                                    # Available RAM in GB
+  python_version: "3.11.4"                      # python --version
+  os: "macOS 26.3"                              # Or "Ubuntu 22.04 LTS", etc.
+  uses_gpu_for_inference: false                 # Must be false — see compute constraints
+  has_network_during_ranking: false             # Must be false — no API calls during ranking
+  pre_computation_required: true               # true if you pre-compute embeddings or train models offline
+  pre_computation_time_minutes: approx. 7-12                # Approximate, if applicable
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+# Transparency only — declared use is NOT penalized. Be honest. Stage 5 interview
+# may verify these declarations against your code; declarations that contradict
+# your code or your interview are flagged.
+ai_tools_used:
+  - "ChatGPT"        # e.g. for architecture discussion, code review
+  - "Antigravity"  # e.g. for autocomplete
+  # Other options: "ChatGPT", "Cursor", "Gemini", "Codeium", "Other", "None"
+
+ai_usage_summary: |
+  AI assistants were utilized strictly as auxiliary tools for syntax autocomplete,
+  boilerplate generation,
+  and debugging minor Python environment or Docker issues.
+  The core engineering work—encompassing the two-stage retrieval architecture, 
+  semantic index design, pipeline optimization, and ranking logic—was entirely human-designed and implemented.
+  No candidate data was ever fed into any LLMs or external APIs.
+
+
+# ============================================================================
+# Approach summary (optional but recommended)
+# ============================================================================
+methodology_summary: |
+  Implemented a highly optimized, two-stage ranking pipeline on CPU. 
+  The architecture begins with a multi-format ingestion engine that efficiently parses and validates candidate data. 
+  Beyond semantic search, the system integrates dedicated modules to evaluate explicit candidate signals like experience years, 
+  skill overlaps, and job titles. 
+  This is paired with a built-in risk engine that factors in availability and notice periods to intelligently adjust final scores.
+  Stage 1 uses precomputed dense vector embeddings and a fast semantic index to perform scalable initial retrieval,
+  rapidly filtering ~70,000 candidates down to a high-quality top 500 in under 70 seconds. 
+  Stage 2 applies a state-of-the-art Cross-Encoder model to rigorously re-rank this shortlist by capturing deep contextual interactions with the job description. 
+  Finally, a dedicated reasoning module dynamically generates human-readable justifications. 
+  The entire end-to-end system executes locally in under three minutes, ensuring strict data privacy without relying on external API bottlenecks.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true        # I have read submission_spec.md in full
+  code_is_original_work: true       # My code is my team's original work (using AI as a tool is fine)
+  no_collusion: true                # I have not coordinated my submission with other teams
+  honeypot_check_done: false        # OPTIONAL — set true if you explicitly checked for honeypots in your ranking
+  reproduction_tested: true         # I have tested that my reproduce_command runs end-to-end
