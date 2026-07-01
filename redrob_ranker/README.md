@@ -34,7 +34,7 @@ redrob_ranker/
 │   │   ├── risk_engine.py      # Stages 9-10: Availability and Domain Risk Engines (Gates & Penalties)
 │   │   ├── scorer.py           # Stages 6-7: Aggregates capability scores into final Technical Fit
 │   │   ├── semantic_index.py   # Loads pre-computed embeddings + fusion scoring
-│   │   ├── cross_encoder_rerank.py  # Stage 2: cross-encoder rerank on top 500
+│   │   ├── cross_encoder_rerank.py  # Stage 2: cross-encoder rerank on top 1500
 │   │   └── validator.py        # Stage 1: Evidence Validation (Consistency & Credibility)
 │   ├── models/
 │   │   ├── candidate.py        # Type hints for candidate JSON objects
@@ -107,7 +107,7 @@ python validate_submission.py ./output/submission.csv
 
 ### Optional — Stage 2 cross-encoder rerank
 
-Stage 1 (default) scores all valid candidates and outputs the top 100. Stage 2 reranks only the **top 500** Stage-1 candidates with a cross-encoder (`cross-encoder/ms-marco-MiniLM-L6-v2`), then outputs the final top 100.
+Stage 1 (default) scores all valid candidates and outputs the top 100. Stage 2 reranks only the **top 1500** Stage-1 candidates with a cross-encoder (`cross-encoder/ms-marco-MiniLM-L6-v2`), then outputs the final top 100.
 
 The cross-encoder model is **committed under `models/cross-encoder-ms-marco-MiniLM-L6-v2/`** (~87 MB). No download needed after clone.
 
@@ -174,5 +174,5 @@ If `artifacts/candidate_embeddings.npy` is missing, the ranker logs a warning an
 - **Stage 8 (Behavior):** Evaluates Intent, Reachability, and Demand using a multiplicative modifier (`behavior_engine.py`).
 - **Stages 9-10 (Risks & Gates):** Adds heavy point penalties for low response rates or consulting-only backgrounds. Applies hard removal Gates (`risk_engine.py`).
 - **Stages 11-13 (Rank Orchestration):** Fuses semantic + technical fit + BM25 + behavioral scores; sorts Top 100 (`ranker.py` + `semantic_index.py`).
-- **Stage 2 (optional cross-encoder):** Reranks top 500 Stage-1 candidates with JD–profile cross-encoder scores (`cross_encoder_rerank.py`).
+- **Stage 2 (optional cross-encoder):** Reranks top 1500 Stage-1 candidates with JD–profile cross-encoder scores (`cross_encoder_rerank.py`).
 - **Stage 14 (Reasoning):** Outputs human-readable logic templates appended to the trace (`reasoning.py`).
