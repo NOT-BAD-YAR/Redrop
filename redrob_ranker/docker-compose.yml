@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: redrob-ranker:latest
+    image: notbad007/redrob-ranker:latest
     container_name: redrob_ranker
     volumes:
       # Map host data folder to container data folder

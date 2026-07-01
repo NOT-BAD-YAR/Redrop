@@ -3,7 +3,9 @@ import os
 import time
 
 # Add root directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.ranker import CandidateRanker
 
@@ -19,32 +21,65 @@ def _str2bool(value: str) -> bool:
     raise ValueError(f"Invalid boolean value: {value}")
 
 
+def _resolve_path(path_str: str) -> str:
+    if not path_str or os.path.isabs(path_str):
+        return path_str
+    if os.path.exists(path_str):
+        return os.path.abspath(path_str)
+    root_path = os.path.join(PROJECT_ROOT, path_str)
+    if os.path.exists(root_path):
+        return os.path.abspath(root_path)
+    norm_parts = os.path.normpath(path_str).lstrip(os.sep).split(os.sep)
+    if norm_parts[0] in ("data", "output", "artifacts", "models", "config", "scripts", "src"):
+        return os.path.abspath(root_path)
+    return os.path.abspath(path_str)
+
+
 def main():
+    try:
+        from dotenv import load_dotenv
+        env_path = os.path.join(PROJECT_ROOT, ".env")
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+        else:
+            load_dotenv()
+    except ImportError:
+        pass
+
     import argparse
+    default_candidates = os.getenv("CANDIDATES_PATH", os.path.join("data", "candidates.jsonl"))
+    default_out = os.getenv("OUTPUT_PATH", os.path.join("output", "submission.csv"))
+    default_top_n = int(os.getenv("TOP_N", "100"))
+    default_use_cross_encoder = _str2bool(os.getenv("USE_CROSS_ENCODER", "false"))
+
     parser = argparse.ArgumentParser(description="Redrob Candidate Ranking System")
-    parser.add_argument("--candidates", type=str, default=r"data\candidates.jsonl", help="Path to input candidates.jsonl")
-    parser.add_argument("--out", type=str, default=r"output\submission.csv", help="Path to output CSV")
-    parser.add_argument("--top_n", type=int, default=100, help="Number of top candidates to output")
+    parser.add_argument("--candidates", type=str, default=default_candidates, help="Path to input candidates.jsonl")
+    parser.add_argument("--out", type=str, default=default_out, help="Path to output CSV")
+    parser.add_argument("--top_n", type=int, default=default_top_n, help="Number of top candidates to output")
     parser.add_argument(
         "--use-cross-encoder",
         type=_str2bool,
-        default=False,
+        default=default_use_cross_encoder,
         help="Enable Stage 2 cross-encoder rerank (true/false)",
     )
     parser.add_argument(
         "--rerank-pool-size",
         type=int,
-        default=1500,
+        default=int(os.getenv("RERANK_POOL_SIZE", "1500")),
         help="Number of Stage-1 candidates to rerank with cross-encoder (default: 1500)",
     )
     args = parser.parse_args()
 
-    if "--candidates" not in sys.argv:
+    args.candidates = _resolve_path(args.candidates)
+    args.out = _resolve_path(args.out)
+
+    if not os.path.exists(args.candidates) and sys.stdin.isatty():
         user_input = input(f"Enter path to candidates file or directory [default: {args.candidates}]: ").strip().strip('"\'')
         if user_input:
-            args.candidates = user_input
+            args.candidates = _resolve_path(user_input)
 
     if not os.path.exists(args.candidates):
+
         print(f"Error: Candidate input path not found at '{args.candidates}'.")
         sys.exit(1)
 

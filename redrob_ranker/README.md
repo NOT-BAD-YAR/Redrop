@@ -1,178 +1,224 @@
-# Redrob Candidate Ranking System
+# Redrob Candidate Ranking System — Technical Documentation & Architecture
 
-This project is a structured, highly optimized multi-stage candidate ranking system built to identify the best Senior AI Engineer profiles from a dataset of 100,000+ candidates. It processes candidates against a 14-stage filtering and scoring pipeline designed to weed out keyword honeypots and elevate candidates with genuine, scalable production experience.
+This repository contains the core codebase for the **Redrob Candidate Ranking System** (Track 01). Built to identify elite **Senior AI Engineer** talent from an unstructured pool of 100,000+ applicants, our system implements a highly optimized, deterministic 14-stage evaluation pipeline. It combines offline semantic similarity, multi-tiered AI capability taxonomy extraction, behavioral reachability signals, and rigorous risk gating—executing in under a minute on standard CPU hardware.
 
-## Architecture
+---
 
-The project is structured into multiple core modules handling specific stages of the scoring pipeline:
+## Technology Stack
+
+Our system is engineered for speed, reproducibility, and zero-external-dependency execution:
+
+* **Core Runtime:** Python 3.11 (optimized for speed and clean typing).
+* **Vector Embeddings & Semantic Search:** `sentence-transformers` & `numpy`. Uses precomputed vector representations (`all-MiniLM-L6-v2`, 384-dim) stored locally via Git LFS to perform high-speed cosine similarity without API calls.
+* **Precision Reranking:** Offline Cross-Encoder (`ms-marco-MiniLM-L6-v2`) for deep sequence-pair classification on the top candidates.
+* **Concurrency Engine:** Python `multiprocessing.Pool` utilizing shared worker memory initialization (`_init_worker`) to eliminate IPC overhead and achieve maximum multi-core throughput.
+* **Declarative Configuration:** `PyYAML` & `python-dotenv` for clean, zero-code management of taxonomy regex patterns, scoring weights, and environment variables.
+* **Data Modeling & Validation:** `Pydantic` for strict candidate schema enforcement and trace logging.
+
+---
+
+## System Architecture & Flow
+
+```text
+Input Candidates (JSON/JSONL) 
+       │
+       ▼
+[Stage 0] Schema Normalization & Date Standardization
+       │
+       ▼
+[Stage 1] Timeline & Credibility Validation (Anomalies & Gaps)
+       │
+       ▼
+[Stages 2–5] Capability Taxonomy & Evidence Extraction (Retrieval, Ranking, Evaluation, Matching)
+       │
+       ▼
+[Stages 6–7] Technical Fit Aggregation & Anti-Spam Point Capping
+       │
+       ▼
+[Stage 8] Behavioral Engine (Market Intent & Reachability)
+       │
+       ▼
+[Stages 9–10] Risk Engine & Gate Filtering (Honeypot & Consulting Penalties)
+       │
+       ▼
+[Stages 11–13] Hybrid Score Fusion (Semantic 30% + Tech Fit 30% + BM25 20% + Behavioral 20%)
+       │
+       ▼
+[Optional Stage 2] Cross-Encoder Precision Reranking (Top 1500 Pool)
+       │
+       ▼
+[Stage 14] Deterministic Human-Readable Reasoning Generation ➔ Output Top 100 CSV
+```
+
+---
+
+## The 14-Stage Working Process Explained
+
+### 1. Pre-Processing & Data Integrity
+* **Stage 0 (Schema Normalization):** Sanitizes heterogeneous candidate inputs, converts salary currencies to INR LPA, and standardizes date timestamps across work history entries.
+* **Stage 1 (Credibility Validation):** Scans career timelines for overlapping full-time employment, suspicious gaps (>6 months), and academic timeline discrepancies to compute a base credibility score.
+
+### 2. Deep Capability & Taxonomy Extraction
+* **Stages 2–5 (Evidence Extraction):** Evaluates profile summaries, headlines, and career descriptions against a 3-tier AI engineering taxonomy defined in `config/dictionaries.yaml`:
+  * *Retrieval & Indexing:* Vector databases (Qdrant, Milvus, Pinecone), BM25, hybrid search.
+  * *Ranking & Recommendation:* Cross-encoders, ColBERT, learning-to-rank (LTR).
+  * *Evaluation & Alignment:* RAGAS, TruLens, RLHF, DPO, prompt engineering.
+  * *Matching & Architecture:* Graph neural networks, entity resolution, LLM orchestration.
+  * Adjusts weights based on **Ownership** (*"built/architected"* vs *"assisted/maintained"*), **Recency** (current vs legacy roles), and **Production Scale**.
+
+### 3. Scoring & Spam Prevention
+* **Stages 6–7 (Technical Fit Aggregation):** Aggregates weighted capability hits into a unified 0–100 Technical Fit score. Enforces strict category point caps to prevent candidates from gaming the system via keyword spamming. Applies bonuses for verified product company backgrounds.
+
+### 4. Behavioral & Risk Gating
+* **Stage 8 (Behavioral Engine):** Assesses candidate availability, profile freshness, and salary expectations (`expected_salary_range_inr_lpa`). Candidates exceeding budget thresholds or displaying low intent receive reachability multipliers.
+* **Stages 9–10 (Risk & Gate Engine):** Enforces hard filtering gates (e.g., salary honeypot triggers where min > max). Applies progressive penalties to candidates with purely theoretical backgrounds or consulting-only experience lacking product ownership.
+
+### 5. Hybrid Score Fusion & Reranking
+* **Stages 11–13 (Orchestration & Fusion):** Fuses four core orthogonal signals into a preliminary ranking score:
+  $$\text{Final Score} = 0.30 \times \text{Semantic} + 0.30 \times \text{TechnicalFit} + 0.20 \times \text{BM25} + 0.20 \times \text{Behavioral}$$
+* **Optional Stage 2 (Cross-Encoder Reranking):** If enabled (`USE_CROSS_ENCODER=true`), the top 1500 candidates undergo deep pairwise evaluation against the exact job description text using `ms-marco-MiniLM-L6-v2`, blending cross-encoder logits with Stage 1 scores for ultimate ranking precision.
+
+### 6. Explainability & Output
+* **Stage 14 (Reasoning Generation):** Generates concise, audit-ready markdown justifications for each selected candidate highlighting their specific production evidence, top competencies, and overall fit. Exports the top 100 ranked profiles to `submission.csv`.
+
+---
+
+## Repository Structure
 
 ```text
 redrob_ranker/
-├── artifacts/               # Pre-computed embeddings (offline ranking)
-│   ├── candidate_embeddings.npy
-│   ├── candidate_ids.json
-│   └── jd_embedding.npy
-├── data/                    # Symlink candidates.jsonl + Job Description.md
-├── models/
-│   ├── all-MiniLM-L6-v2/    # Bundled offline embedding model (~87 MB, no internet at runtime)
-│   └── cross-encoder-ms-marco-MiniLM-L6-v2/  # Bundled Stage 2 rerank model (~87 MB, offline)
-├── scripts/
-│   ├── precompute_embeddings.py
-│   ├── precompute_jd_embedding.py
-│   └── download_cross_encoder.py
-├── config/                  
-│   ├── dictionaries.yaml    # Stores all RegEx keyword patterns for extraction
-│   ├── templates.yaml       # Reasoning generator templates
-│   └── weights.yaml         # Mathematical limits, caps, and risk penalties
-├── src/
-│   ├── core/
-│   │   ├── behavior_engine.py  # Stage 8: Multiplicative behavior scoring using Redrob signals
-│   │   ├── extractor.py        # Stages 2-5: Evidence Extraction, Ownership, Recency & Production Scoring
-│   │   ├── normalizer.py       # Stage 0: Schema validation & date normalization
-│   │   ├── ranker.py           # Stages 11-13: Pipeline Orchestrator & Multiprocessing map
-│   │   ├── reasoning.py        # Stage 14: Non-LLM Template-driven Reasoning Generator
-│   │   ├── risk_engine.py      # Stages 9-10: Availability and Domain Risk Engines (Gates & Penalties)
-│   │   ├── scorer.py           # Stages 6-7: Aggregates capability scores into final Technical Fit
-│   │   ├── semantic_index.py   # Loads pre-computed embeddings + fusion scoring
-│   │   ├── cross_encoder_rerank.py  # Stage 2: cross-encoder rerank on top 1500
-│   │   └── validator.py        # Stage 1: Evidence Validation (Consistency & Credibility)
-│   ├── models/
-│   │   ├── candidate.py        # Type hints for candidate JSON objects
-│   │   └── trace.py            # Pydantic models mapping the formal Trace Schema
-│   └── main.py                 # CLI Execution Point
-├── output/                     # Export directory for ranked JSON output
-└── requirements.txt            # Project dependencies (pydantic, pyyaml)
+├── .env.example             # Template for environment variables
+├── Dockerfile               # Container build instructions
+├── docker-compose.yml       # Multi-container orchestration & local volume mounts
+├── requirements.txt         # Python project dependencies
+├── validate_submission.py   # Competition submission CSV validator
+├── artifacts/               # Precomputed offline embeddings & IDs (Git LFS)
+├── config/                  # Declarative taxonomy rules & fusion weights (.yaml)
+├── data/                    # Candidate datasets & job description files
+├── models/                  # Bundled offline AI models (no internet required at runtime)
+├── scripts/                 # Auxiliary helper scripts (embedding pre-computation)
+└── src/                     # Core application source code
 ```
-
-## Setup & Execution
-
-### Mac setup (Python 3.11 required)
-
-Do **not** use system Python 3.14 — `pydantic` will fail to install. Use Homebrew Python 3.11:
-
-```bash
-cd Redrop/redrob_ranker
-/opt/homebrew/bin/python3.11 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-Data is symlinked under `data/` (465 MB `candidates.jsonl` is not copied):
-
-```bash
-# Already set up if you followed Phase 1; recreate with:
-mkdir -p data
-ln -sf "../../[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl" data/candidates.jsonl
-ln -sf "../../[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/Job Description.md" "data/Job Description.md"
-```
-
-Activate the venv in every new terminal: `source .venv/bin/activate`
-
-### Offline embedding model (judges: no internet)
-
-The MiniLM model is **committed under `models/all-MiniLM-L6-v2/`** (~87 MB). Do not download from Hugging Face at runtime.
 
 ---
 
-## Setup
+## Execution Modes & Setup Instructions
 
-Judges clone the repo and run — **no pre-computation needed**. Candidate embeddings are shipped via Git LFS.
+### Prerequisites: Git Large File Storage (Git LFS)
+Because offline vector embeddings are stored in this repository, you must install Git LFS before cloning:
 
-### Step 1 — Install dependencies
+#### 1. Install Git LFS for Your Operating System
+Open your terminal or command prompt and run the relevant command for your system:
 
+**🌐 Windows**
+The most direct method is using the built-in Windows Package Manager:
 ```bash
-cd Redrop/redrob_ranker
-source .venv/bin/activate   # create venv first — see Mac setup above
-pip install -r requirements.txt
+winget install -e --id GitHub.GitLFS
+```
+Alternatively, you can download the installer directly from the [Official Git LFS Website](https://git-lfs.com) and run the executable.
+
+**🍎 macOS**
+If you use Homebrew, run:
+```bash
+brew install git-lfs
+```
+If you use MacPorts, run:
+```bash
+port install git-lfs
 ```
 
-After clone, pull LFS files:
-
+**🐧 Linux (Ubuntu/Debian)**
 ```bash
+sudo apt update && sudo apt install git-lfs
+```
+
+#### 2. Initialize and Clone the Repository
+```bash
+git lfs install
+git clone https://github.com/NOT-BAD-YAR/Redrop.git
+cd Redrop/redrob_ranker
 git lfs pull
 ```
 
-### Step 2 — Run ranker (embeddings pre-computed, no wait)
+---
+
+### Mode A: Docker Container Execution (Pull & Run via CLI)
+You can execute the ranker directly using our pre-built image without installing Python locally. You **must mount local volume directories (`-v`)** to supply input data and collect the output CSV.
 
 ```bash
-source .venv/bin/activate
-
-python src/main.py \
-  --candidates ./data/candidates.jsonl \
-  --out ./output/submission.csv
-
-python validate_submission.py ./output/submission.csv
+docker run --rm \
+  -v /path/to/local/data:/app/data \
+  -v /path/to/local/output:/app/output \
+  notbad007/redrob-ranker:latest
 ```
+*(Note: By default, the container reads `/app/data/candidates.jsonl` and writes `/app/output/submission.csv`.)*
 
-### Optional — Stage 2 cross-encoder rerank
-
-Stage 1 (default) scores all valid candidates and outputs the top 100. Stage 2 reranks only the **top 1500** Stage-1 candidates with a cross-encoder (`cross-encoder/ms-marco-MiniLM-L6-v2`), then outputs the final top 100.
-
-The cross-encoder model is **committed under `models/cross-encoder-ms-marco-MiniLM-L6-v2/`** (~87 MB). No download needed after clone.
-
-To re-download or refresh the model:
-
+**Passing Custom Flags in Docker (including cross-encoder on top 1500):**
 ```bash
-source .venv/bin/activate
-python scripts/download_cross_encoder.py
+docker run --rm \
+  -v /path/to/local/data:/app/data \
+  -v /path/to/local/output:/app/output \
+  notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv --use-cross-encoder true --rerank-pool-size 1500
 ```
-
-This saves the model to `models/cross-encoder-ms-marco-MiniLM-L6-v2/`.
-
-**Run with Stage 2 enabled:**
-
-```bash
-source .venv/bin/activate
-
-python src/main.py \
-  --candidates ./data/candidates.jsonl \
-  --out ./output/submission.csv \
-  --use-cross-encoder true
-```
-
-If the cross-encoder model is missing, the ranker logs a warning and falls back to Stage 1 ordering. Stage 2 uses CPU only, batch size 16, and fuses scores as `0.75 * stage1_score + 0.25 * cross_norm`.
-
-> **Note:** `artifacts/candidate_embeddings.npy` (146 MB) is stored via **Git LFS**.
-> It downloads automatically on `git clone` (or `git lfs pull`). No 20-minute pre-computation needed.
-
-Also bundled in the repo (small files, regular git):
-- `artifacts/candidate_ids.json` — 100K aligned candidate IDs
-- `artifacts/jd_embedding.npy` — JD vector for semantic scoring
-- `models/all-MiniLM-L6-v2/` — offline embedding model (~87 MB)
-
-### Optional — Re-generate embeddings from scratch (~20 min)
-
-Only needed if you change the embedding model or candidate text builder.
-
-```bash
-source .venv/bin/activate
-python scripts/precompute_embeddings.py
-python scripts/precompute_jd_embedding.py
-```
-
-**Fusion weights** (`config/weights.yaml`):
-
-```yaml
-fusion_weights:
-  semantic: 0.30
-  technical_fit: 0.30
-  bm25: 0.20
-  behavioral: 0.20
-```
-
-If `artifacts/candidate_embeddings.npy` is missing, the ranker logs a warning and continues with `semantic_score = 0.0`.
 
 ---
 
-## Processing Stages
+### Mode B: Docker Desktop GUI Execution
+If you prefer using Docker Desktop GUI instead of terminal commands:
+1. Search for image **`notbad007/redrob-ranker:latest`** in Docker Desktop.
+2. Click **Run**.
+3. Expand **Optional settings** (or **Advanced settings**).
+4. Under **Volumes / Host path mapping**, add:
+   * **Host Path 1:** Your folder containing `candidates.jsonl` ➔ **Container Path:** `/app/data`
+   * **Host Path 2:** Your output folder ➔ **Container Path:** `/app/output`
+5. *(Optional)* Add environment variable overrides under **Environment variables** (e.g., `USE_CROSS_ENCODER` = `true`).
+6. Click **Run**.
 
-- **Stage 0 (Schema):** Ensures robust dates via timestamp conversion (`normalizer.py`).
-- **Stage 1 (Evidence Validation):** Flags invalid timelines and generates base Credibility (`validator.py`).
-- **Stages 2-5 (Evidence & Modifiers):** Scans profile text against 3 Tiers of Technical taxonomy, applying modifiers for Recency, Ownership ("built" vs "assisted"), and Production scale (`extractor.py`).
-- **Stages 6-7 (Technical Fit):** Caps taxonomy points to prevent over-indexing on keywords. Adds Product Company bonuses (`scorer.py`).
-- **Stage 8 (Behavior):** Evaluates Intent, Reachability, and Demand using a multiplicative modifier (`behavior_engine.py`).
-- **Stages 9-10 (Risks & Gates):** Adds heavy point penalties for low response rates or consulting-only backgrounds. Applies hard removal Gates (`risk_engine.py`).
-- **Stages 11-13 (Rank Orchestration):** Fuses semantic + technical fit + BM25 + behavioral scores; sorts Top 100 (`ranker.py` + `semantic_index.py`).
-- **Stage 2 (optional cross-encoder):** Reranks top 1500 Stage-1 candidates with JD–profile cross-encoder scores (`cross_encoder_rerank.py`).
-- **Stage 14 (Reasoning):** Outputs human-readable logic templates appended to the trace (`reasoning.py`).
+---
+
+### Mode C: Docker Compose Execution (Local Repo)
+If working inside the cloned repository directory, run:
+```bash
+docker compose run --rm ranker
+```
+To enable cross-encoder reranking via Compose:
+```bash
+docker compose run --rm ranker --use-cross-encoder true
+```
+
+---
+
+### Mode D: Local Python Virtual Environment Setup
+```bash
+# 1. Create and activate virtual environment
+python -m venv .venv
+# Windows: .venv\Scripts\activate | macOS/Linux: source .venv/bin/activate
+
+# 2. Install requirements
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 3. Configure environment
+cp .env.example .env
+
+# 4. Run pipeline
+python src/main.py
+```
+
+---
+
+## Submission Validation
+
+To verify that your generated CSV strictly adheres to Track 01 guidelines (exact headers, 100 rows, descending score order):
+```bash
+python validate_submission.py ./output/submission.csv
+```
+
+---
+
+## Auxiliary Utilities
+
+If you update the dataset or job description, recompute offline artifacts using the scripts in `scripts/`:
+* Recompute Candidate Vectors: `python scripts/precompute_embeddings.py`
+* Recompute Job Description Vector: `python scripts/precompute_jd_embedding.py`
+* Refresh Cross-Encoder Bundle: `python scripts/download_cross_encoder.py`
