@@ -51,7 +51,7 @@ redrob-ranker = "src.main:main"
 [project.urls]
 Repository = "https://github.com/NOT-BAD-YAR/Redrop.git"
 Sandbox = "https://hub.docker.com/r/notbad007/redrob-ranker"
-Documentation = "https://github.com/NOT-BAD-YAR/Redrop/blob/kavin/README.md"
+Documentation = "https://github.com/NOT-BAD-YAR/Redrop/blob/main/README.md"
 
 [tool.setuptools.packages.find]
 where = ["."]
