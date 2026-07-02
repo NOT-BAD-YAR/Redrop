@@ -1,6 +1,6 @@
 # Redrop Candidate Ranking Engine — Technical Architecture Manual
 **INDIA RUNS · Track 01 · Data & AI Challenge**  
-*Team Quad_Core (Branch: `hari`)*
+*Team Quad_Core*
 
 ---
 

@@ -6,7 +6,6 @@
 | :--- | :--- |
 | **Team** | `Quad_Core` |
 | **Challenge** | Rank 100,000 candidates for the Senior AI Engineer JD → Top CSV with evidence reasoning |
-| **Branch** | `hari` |
 | **Sandbox** | [Docker Hub — `notbad007/redrob-ranker`](https://hub.docker.com/r/notbad007/redrob-ranker) |
 | **Metadata** | [`submission_metadata.yaml`](submission_metadata.yaml) *(portal fields + reproduce command)* |
 | **Technical Manual** | 👉 **[`redrob_ranker/README.md`](redrob_ranker/README.md)** *(Detailed 14-Stage Architecture & Scoring Deep Dive)* |
@@ -26,7 +25,6 @@ Precomputed offline embeddings and bundled models are tracked via Git LFS (~146 
 ```bash
 git clone https://github.com/NOT-BAD-YAR/Redrop.git
 cd Redrop
-git checkout hari
 git lfs pull
 ```
 
@@ -86,15 +84,20 @@ docker pull notbad007/redrob-ranker:latest
 ```
 
 #### Step 2: Execute Container with Volume Mounts
-Place your `candidates.jsonl` file inside a local folder named `data/`, create an empty folder named `output/`, and run:
+
+> [!NOTE]
+> **Understanding `${PWD}` and Path Locations:**  
+> In the commands below, `${PWD}` (PowerShell) or `$(pwd)` (Linux/macOS) automatically expands to your **current terminal working directory**.
+> * **If you are inside `redrob_ranker/`** where your `data/` folder is located, running the command below works automatically!
+> * **If you are in a different terminal directory**, please replace `${PWD}/data` and `${PWD}/output` with the **absolute path** to your local `data` and `output` directories (for example: `-v "C:\Users\YourName\Redrop\redrob_ranker\data:/app/data"`).
 
 ```powershell
-# Windows PowerShell:
+# Windows PowerShell (Navigate to redrob_ranker directory first, or use absolute paths):
 docker run --rm -v "${PWD}/data:/app/data" -v "${PWD}/output:/app/output" notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
 ```
 
 ```bash
-# Linux / macOS:
+# Linux / macOS (Navigate to redrob_ranker directory first, or use absolute paths):
 docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/output:/app/output" notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
 ```
 
