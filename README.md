@@ -25,19 +25,85 @@ Given `candidates.jsonl` (100K profiles) and the released job description, our s
 
 ---
 
-## Reproduce the submission (single command)
+## Reproduce the submission (for judges)
 
-> Per `submission_spec.md` §10.3 — this is the command judges should run at **Stage 3**.
+> Per `submission_spec.md` §10.3 — run these steps at **Stage 3** to regenerate `submission.csv`.
 
-### Option A — Docker (recommended, no Python setup)
+**Replace placeholders before running:**
+
+| Placeholder | Meaning |
+|-------------|---------|
+| `<YOUR_CLONE_DIR>` | Folder where you cloned this repo (e.g. `/home/judge/Redrop` or `C:\Users\judge\Redrop`) |
+| `<YOUR_CANDIDATES_FILE>` | Full path to hackathon `candidates.jsonl` from the organizer bundle |
+
+After setup, all commands assume you are inside:
+
+```text
+<YOUR_CLONE_DIR>/redrob_ranker
+```
+
+Check with: `pwd` (macOS/Linux) or `cd` (Windows CMD).
+
+---
+
+### Step 1 — Clone repo + pull LFS (all OS)
 
 ```bash
-git clone https://github.com/NOT-BAD-YAR/Redrop.git
-cd Redrop && git lfs pull
-cd redrob_ranker
+# Clone
+git clone https://github.com/NOT-BAD-YAR/Redrop.git <YOUR_CLONE_DIR>
+cd <YOUR_CLONE_DIR>
 
+# Use submission branch
+git checkout kavin
+
+# Download large embedding files (required)
+git lfs install
+git lfs pull
+
+# Go to ranker folder
+cd redrob_ranker
+```
+
+---
+
+### Step 2 — Add candidate data
+
+Create `data/` and `output/` folders, then copy `candidates.jsonl`:
+
+**macOS / Linux (Bash / Zsh)**
+
+```bash
+cd <YOUR_CLONE_DIR>/redrob_ranker
 mkdir -p data output
-cp /path/to/hackathon/candidates.jsonl data/candidates.jsonl
+cp "<YOUR_CANDIDATES_FILE>" data/candidates.jsonl
+```
+
+**Windows (PowerShell)**
+
+```powershell
+cd <YOUR_CLONE_DIR>\redrob_ranker
+New-Item -ItemType Directory -Force -Path data, output
+Copy-Item "<YOUR_CANDIDATES_FILE>" "data\candidates.jsonl"
+```
+
+**Windows (CMD)**
+
+```cmd
+cd <YOUR_CLONE_DIR>\redrob_ranker
+mkdir data output
+copy "<YOUR_CANDIDATES_FILE>" data\candidates.jsonl
+```
+
+---
+
+### Step 3A — Run with Docker (recommended)
+
+No Python install needed. Run from `<YOUR_CLONE_DIR>/redrob_ranker`.
+
+**macOS / Linux (Bash / Zsh)**
+
+```bash
+cd <YOUR_CLONE_DIR>/redrob_ranker
 
 docker run --rm \
   -v "$(pwd)/data:/app/data" \
@@ -49,20 +115,60 @@ docker run --rm \
   --rerank-pool-size 1500
 ```
 
-### Option B — Local Python 3.11
+**Windows (PowerShell)**
+
+```powershell
+cd <YOUR_CLONE_DIR>\redrob_ranker
+
+docker run --rm `
+  -v "${PWD}\data:/app/data" `
+  -v "${PWD}\output:/app/output" `
+  notbad007/redrob-ranker:latest `
+  --candidates /app/data/candidates.jsonl `
+  --out /app/output/submission.csv `
+  --use-cross-encoder true `
+  --rerank-pool-size 1500
+```
+
+**Windows (CMD)**
+
+```cmd
+cd <YOUR_CLONE_DIR>\redrob_ranker
+
+docker run --rm ^
+  -v "%cd%\data:/app/data" ^
+  -v "%cd%\output:/app/output" ^
+  notbad007/redrob-ranker:latest ^
+  --candidates /app/data/candidates.jsonl ^
+  --out /app/output/submission.csv ^
+  --use-cross-encoder true ^
+  --rerank-pool-size 1500
+```
+
+Output file: `<YOUR_CLONE_DIR>/redrob_ranker/output/submission.csv`
+
+---
+
+### Step 3B — Run with local Python 3.11
+
+Requires **Python 3.11** (not 3.14).
+
+**macOS / Linux (Bash / Zsh)**
 
 ```bash
-git clone https://github.com/NOT-BAD-YAR/Redrop.git
-cd Redrop && git checkout kavin && git lfs pull
-cd redrob_ranker
+cd <YOUR_CLONE_DIR>/redrob_ranker
 
-mkdir -p data output
-cp /path/to/hackathon/candidates.jsonl data/candidates.jsonl
-
+# Create virtual environment
 python3.11 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+
+# Activate venv
+source .venv/bin/activate
+
+# Install dependencies
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
+# Run ranker
 python src/main.py \
   --candidates ./data/candidates.jsonl \
   --out ./output/submission.csv \
@@ -70,10 +176,57 @@ python src/main.py \
   --rerank-pool-size 1500
 ```
 
-### Validate before uploading
+**Windows (PowerShell)**
+
+```powershell
+cd <YOUR_CLONE_DIR>\redrob_ranker
+
+# Create virtual environment
+py -3.11 -m venv .venv
+
+# Activate venv
+.\.venv\Scripts\Activate.ps1
+
+# Install dependencies
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+# Run ranker
+python src/main.py `
+  --candidates ./data/candidates.jsonl `
+  --out ./output/submission.csv `
+  --use-cross-encoder true `
+  --rerank-pool-size 1500
+```
+
+**Windows (CMD)**
+
+```cmd
+cd <YOUR_CLONE_DIR>\redrob_ranker
+
+py -3.11 -m venv .venv
+.\.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+python src/main.py ^
+  --candidates ./data/candidates.jsonl ^
+  --out ./output/submission.csv ^
+  --use-cross-encoder true ^
+  --rerank-pool-size 1500
+```
+
+> **Tip:** If `python` is not found, use `py -3.11` on Windows.  
+> If `No module named 'yaml'`, the venv is not activated.
+
+---
+
+### Step 4 — Validate output
+
+**macOS / Linux / Windows (with venv active)**
 
 ```bash
-cd redrob_ranker
+cd <YOUR_CLONE_DIR>/redrob_ranker
 python validate_submission.py ./output/submission.csv
 ```
 
@@ -153,12 +306,30 @@ CSV format: `candidate_id,rank,score,reasoning` — ranks 1–100 unique, scores
 ## Prerequisites
 
 1. **Git LFS** — required for `artifacts/candidate_embeddings.npy`
+
+   **macOS**
    ```bash
-   brew install git-lfs && git lfs install   # macOS
-   git lfs pull                            # after clone
+   brew install git-lfs
+   git lfs install
    ```
-2. **Python 3.11** — do not use 3.14 (`pydantic` build fails)
-3. **Hackathon data** — copy `candidates.jsonl` into `redrob_ranker/data/`
+
+   **Linux (Ubuntu/Debian)**
+   ```bash
+   sudo apt update && sudo apt install git-lfs
+   git lfs install
+   ```
+
+   **Windows**
+   ```powershell
+   winget install -e --id GitHub.GitLFS
+   git lfs install
+   ```
+
+   After clone, always run: `git lfs pull`
+
+2. **Python 3.11** (local run only) — do not use 3.14 (`pydantic` build fails)
+3. **Hackathon data** — copy organizer `candidates.jsonl` to `<YOUR_CLONE_DIR>/redrob_ranker/data/`
+4. **Docker** (Docker option only) — [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Windows/Mac, or Docker Engine on Linux
 
 ---
 
@@ -185,11 +356,12 @@ AI assistants (ChatGPT, Antigravity) were used for autocomplete and debugging on
 
 | Error | Fix |
 |-------|-----|
-| `No module named 'yaml'` | Activate venv: `source redrob_ranker/.venv/bin/activate` |
+| `No module named 'yaml'` | Activate venv first — macOS/Linux: `source .venv/bin/activate` · Windows: `.\.venv\Scripts\Activate.ps1` |
 | `command not found: pip` | Use `python -m pip install -r requirements.txt` |
-| Tiny/missing `.npy` files | Run `git lfs pull` from repo root |
-| `candidates.jsonl not found` | Copy hackathon bundle file to `redrob_ranker/data/` |
+| Tiny/missing `.npy` files | Run `git lfs pull` from `<YOUR_CLONE_DIR>` |
+| `candidates.jsonl not found` | Copy bundle file to `<YOUR_CLONE_DIR>/redrob_ranker/data/candidates.jsonl` |
 | `pydantic` install fails | Use **Python 3.11**, not 3.14 |
+| Docker volume error on Windows | Run commands from `<YOUR_CLONE_DIR>\redrob_ranker` and use the Windows Docker example above |
 
 ---
 
