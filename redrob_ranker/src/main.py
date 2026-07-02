@@ -60,7 +60,13 @@ def main():
         "--use-cross-encoder",
         type=_str2bool,
         default=default_use_cross_encoder,
-        help="Enable Stage 2 cross-encoder rerank on top 500 (true/false)",
+        help="Enable Stage 2 cross-encoder rerank (true/false)",
+    )
+    parser.add_argument(
+        "--rerank-pool-size",
+        type=int,
+        default=int(os.getenv("RERANK_POOL_SIZE", "1500")),
+        help="Number of Stage-1 candidates to rerank with cross-encoder (default: 1500)",
     )
     args = parser.parse_args()
 
@@ -86,6 +92,7 @@ def main():
         output_file=args.out,
         top_n=args.top_n,
         use_cross_encoder=args.use_cross_encoder,
+        rerank_pool_size=args.rerank_pool_size,
     )
     stage1_seconds, stage2_seconds = ranker.run()
 

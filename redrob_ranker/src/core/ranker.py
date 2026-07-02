@@ -180,7 +180,7 @@ class CandidateRanker:
         output_file: str,
         top_n: int = 100,
         use_cross_encoder: bool = False,
-        rerank_pool_size: int = 500,
+        rerank_pool_size: int = 1500,
         cross_encoder_batch_size: int = 16,
     ):
         self.input_file = input_file
