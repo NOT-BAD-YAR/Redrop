@@ -47,14 +47,12 @@ def main():
         pass
 
     import argparse
-    default_candidates = os.getenv("CANDIDATES_PATH", os.path.join("data", "candidates.jsonl"))
-    default_out = os.getenv("OUTPUT_PATH", os.path.join("output", "submission.csv"))
     default_top_n = int(os.getenv("TOP_N", "100"))
     default_use_cross_encoder = _str2bool(os.getenv("USE_CROSS_ENCODER", "false"))
 
     parser = argparse.ArgumentParser(description="Redrob Candidate Ranking System")
-    parser.add_argument("--candidates", type=str, default=default_candidates, help="Path to input candidates.jsonl")
-    parser.add_argument("--out", type=str, default=default_out, help="Path to output CSV")
+    parser.add_argument("--candidates", type=str, default=None, help="Path to input candidates.jsonl")
+    parser.add_argument("--out", type=str, default=None, help="Path to output CSV")
     parser.add_argument("--top_n", type=int, default=default_top_n, help="Number of top candidates to output")
     parser.add_argument(
         "--use-cross-encoder",
@@ -70,16 +68,26 @@ def main():
     )
     args = parser.parse_args()
 
+    default_cand = os.path.join("data", "candidates.jsonl")
+    default_out = os.path.join("output", "submission.csv")
+
+    if (args.candidates is None or args.out is None) and sys.stdin.isatty():
+        if args.candidates is None:
+            user_cand = input(f"Enter input path (JSONL file or folder) [{default_cand}]: ").strip().strip('"\'')
+            args.candidates = user_cand if user_cand else default_cand
+        if args.out is None:
+            user_out = input(f"Enter output CSV path [{default_out}]: ").strip().strip('"\'')
+            args.out = user_out if user_out else default_out
+
+    if args.candidates is None:
+        args.candidates = default_cand
+    if args.out is None:
+        args.out = default_out
+
     args.candidates = _resolve_path(args.candidates)
     args.out = _resolve_path(args.out)
 
-    if not os.path.exists(args.candidates) and sys.stdin.isatty():
-        user_input = input(f"Enter path to candidates file or directory [default: {args.candidates}]: ").strip().strip('"\'')
-        if user_input:
-            args.candidates = _resolve_path(user_input)
-
     if not os.path.exists(args.candidates):
-
         print(f"Error: Candidate input path not found at '{args.candidates}'.")
         sys.exit(1)
 

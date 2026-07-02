@@ -13,8 +13,8 @@ COPY requirements.txt .
 
 # Install CPU-only PyTorch first to save disk space and avoid CUDA GPU requirements,
 # then install remaining packages from requirements.txt
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --default-timeout=1000 --retries 10 --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --default-timeout=1000 --retries 10 --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
 
 # Copy project source code, configuration, precomputed artifacts, and local embedding models
 COPY src/ ./src/

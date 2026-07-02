@@ -1,253 +1,148 @@
-# Redrop Candidate Ranker — Track 01
+# Redrop — Intelligent Candidate Discovery & Ranking
+**INDIA RUNS · Track 01 · Data & AI Challenge**  
+*Redrob AI × Hack2Skill*
 
-Rank **100,000 candidates** against the Senior AI Engineer job description and output a **top-100 CSV with reasoning**.  
-Runs **offline on CPU** (no GPU, no internet, no LLM API calls during ranking).
-
-**Team:** Quad_Core | **Repo:** https://github.com/NOT-BAD-YAR/Redrop (branch: `kavin`)
+| Attribute | Details |
+| :--- | :--- |
+| **Team** | `Quad_Core` |
+| **Challenge** | Rank 100,000 candidates for the Senior AI Engineer JD → Top CSV with evidence reasoning |
+| **Branch** | `main` |
+| **Sandbox** | [Docker Hub — `notbad007/redrob-ranker`](https://hub.docker.com/r/notbad007/redrob-ranker) |
+| **Metadata** | [`submission_metadata.yaml`](../submission_metadata.yaml) *(portal fields + reproduce command)* |
 
 ---
 
-## For Judges — Reproduce in 5 Steps
+## ✨ System Overview
 
-### Step 0 — Prerequisites
+Redrop is a state-of-the-art, two-stage AI candidate evaluation engine designed to rank large-scale talent pools (**100,000+ candidates**) against complex Job Descriptions with surgical accuracy—**entirely offline on CPU**.
 
-| Requirement | Details |
-|-------------|---------|
-| Python | **3.11** (do not use 3.14 — `pydantic` will fail) |
-| RAM | 8–16 GB |
-| Git LFS | Required for embedding artifacts (~146 MB) |
-| Input data | `candidates.jsonl` from the hackathon bundle (**not included in repo**) |
+* **Stage 1 (Deep Feature Extraction & Dense Indexing):** Evaluates timeline continuity, seniority traps, technical skill overlap, behavioral intelligence, and pre-computed dense semantic embeddings (`all-MiniLM-L6-v2`) to shortlist top contenders.
+* **Stage 2 (Cross-Encoder Reranking):** Leverages a dedicated cross-encoder (`ms-marco-MiniLM-L6-v2`) to perform deep contextual interaction scoring between the Job Description and candidate histories.
+* **Explainability Engine:** Dynamically generates concise, human-verifiable justifications for every ranked candidate.
 
-Install Git LFS once:
+---
 
-```bash
-# macOS
-brew install git-lfs && git lfs install
+## 🚀 Method 1: The Python Way (Local Execution)
 
-# Ubuntu/Debian
-sudo apt install git-lfs && git lfs install
-
-# Windows
-winget install -e --id GitHub.GitLFS && git lfs install
-```
-
-### Step 1 — Clone and pull LFS files
-
+### Step 1: Clone Repository & Pull LFS Artifacts
+Precomputed embeddings and models are stored via Git LFS. Ensure Git LFS is installed (`git lfs install`), then clone:
 ```bash
 git clone https://github.com/NOT-BAD-YAR/Redrop.git
 cd Redrop
-git checkout kavin
 git lfs pull
+```
+
+### Step 2: Prepare Virtual Environment & Dependencies
+Requires **Python 3.11**.
+```bash
+# Navigate into ranker package
 cd redrob_ranker
+
+# Create and activate virtual environment
+python -m venv .venv
+
+# Windows PowerShell:
+.\.venv\Scripts\activate
+# Linux / macOS:
+# source .venv/bin/activate
+
+# Install requirements
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-### Step 2 — Place candidate data
+### Step 3: Run the Ranking Pipeline
+You can run the ranker in two distinct ways depending on your workflow:
 
-Copy or symlink the hackathon `candidates.jsonl` into `data/`:
-
-```bash
-mkdir -p data output
-
-# Example (adjust path to your bundle location):
-cp "/path/to/hackathon/candidates.jsonl" data/candidates.jsonl
+#### Option A: Production / Automated Scripted Mode
+Pass paths explicitly via CLI flags. Executed immediately without interactive prompts:
+```powershell
+python src/main.py --candidates ./data/candidates.jsonl --out ./output/submission.csv
 ```
 
-The job description is already in the repo at `data/Job Description.md`.
-
-### Step 3 — Install Python dependencies
-
-```bash
-# Use Python 3.11 explicitly
-python3.11 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+#### Option B: Interactive User Mode
+Run simply without flags. If no path is supplied, it prompts cleanly for input and output locations:
+```powershell
+python src/main.py
+```
+```text
+Enter input path (JSONL file or folder) [data\candidates.jsonl]: 
+Enter output CSV path [output\submission.csv]: 
 ```
 
-> **Important:** Always activate `.venv` before running commands.  
-> If you see `ModuleNotFoundError: No module named 'yaml'`, you are not using the venv.
-
-### Step 4 — Run the ranker (single command)
-
-**Recommended submission command** (Stage 1 + cross-encoder rerank):
-
-```bash
-source .venv/bin/activate
-
-python src/main.py \
-  --candidates ./data/candidates.jsonl \
-  --out ./output/submission.csv \
-  --use-cross-encoder true \
-  --rerank-pool-size 1500
-```
-
-**Stage 1 only** (faster, ~30 seconds):
-
-```bash
-python src/main.py \
-  --candidates ./data/candidates.jsonl \
-  --out ./output/submission.csv
-```
-
-### Step 5 — Validate output
-
-```bash
+### Step 4: Validate Output
+Check format compliance against challenge rules:
+```powershell
 python validate_submission.py ./output/submission.csv
 ```
 
-Expected: `Submission is valid.`
-
 ---
 
-## Expected Runtime (CPU, 100K candidates)
+## 🐳 Method 2: The Docker Way (Terminal CLI)
 
-| Mode | Stage 1 | Stage 2 | Total |
-|------|---------|---------|-------|
-| Stage 1 only | ~30s | — | ~30s |
-| + Cross-encoder (pool 1500) | ~30s | ~50s | **~80s** |
-| + Cross-encoder (pool 7000) | ~30s | ~210s | **~4 min** |
+No Python installation required. Run directly via our published public Docker container.
 
-All modes stay within the **5-minute** hackathon limit when pool ≤ 7000.
+### Step 1: Pull the Latest Image
+```bash
+docker pull notbad007/redrob-ranker:latest
+```
 
----
+### Step 2: Run with Volume Mounts
+Place your `candidates.jsonl` into a local `data/` folder, create an `output/` folder, and execute:
 
-## Option A — Docker (no local Python needed)
-
-Pre-built image: **`notbad007/redrob-ranker:latest`**
+```powershell
+# Windows PowerShell:
+docker run --rm -v "${PWD}/data:/app/data" -v "${PWD}/output:/app/output" notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
+```
 
 ```bash
-cd redrob_ranker
-mkdir -p data output
-
-# Place candidates.jsonl in ./data/ first, then:
-docker run --rm \
-  -v "$(pwd)/data:/app/data" \
-  -v "$(pwd)/output:/app/output" \
-  notbad007/redrob-ranker:latest \
-  --candidates /app/data/candidates.jsonl \
-  --out /app/output/submission.csv \
-  --use-cross-encoder true \
-  --rerank-pool-size 1500
+# Linux / macOS:
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/output:/app/output" notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
 ```
 
-**Docker Compose** (from cloned repo):
-
-```bash
-docker compose run --rm ranker \
-  --use-cross-encoder true \
-  --rerank-pool-size 1500
-```
+Your ranked results will appear in `./output/submission.csv`.
 
 ---
 
-## CLI Reference
+## 🖥️ Method 3: The Docker Way (Docker Desktop GUI)
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--candidates` | `./data/candidates.jsonl` | Path to `.jsonl`, `.json`, or folder of files |
-| `--out` | `./output/submission.csv` | Output CSV path |
-| `--top_n` | `100` | Number of candidates to output |
-| `--use-cross-encoder` | `false` | Enable Stage 2 reranking (`true`/`false`) |
-| `--rerank-pool-size` | `1500` | How many Stage-1 candidates to rerank |
+For evaluators who prefer a visual interface without terminal commands:
 
-Environment variables (optional, via `.env`):
-
-```bash
-cp .env.example .env
-# Edit: CANDIDATES_PATH, OUTPUT_PATH, USE_CROSS_ENCODER, RERANK_POOL_SIZE
-```
+1. Open **Docker Desktop**.
+2. In the top search bar, search for **`notbad007/redrob-ranker`** (under the *Images / Hub* tab) and click **Pull**.
+3. Once downloaded, go to **Images**, find `notbad007/redrob-ranker:latest`, and click **Run**.
+4. Click on **Optional Settings** before launching:
+   * Under **Host path** for Volume 1: Browse and select your local folder containing `candidates.jsonl`.
+   * Under **Container path** for Volume 1: Type `/app/data`
+   * Under **Host path** for Volume 2: Browse and select your local empty folder for output.
+   * Under **Container path** for Volume 2: Type `/app/output`
+5. Click **Run**.
+6. The container logs will show the ranking progress, and `submission.csv` will be deposited directly into your selected output folder!
 
 ---
 
-## Output Format
+## 📊 Performance & Runtime Benchmarks
 
-CSV columns (exact order): `candidate_id,rank,score,reasoning`
+Tested on standard CPU hardware (8 cores, 16 GB RAM):
 
-- Exactly **100 data rows** + 1 header
-- Ranks 1–100, each used once
-- Scores non-increasing by rank
-- Reasoning: evidence-based, no LLM generation
-
----
-
-## What's Bundled in the Repo (no download at runtime)
-
-| Asset | Location | Notes |
-|-------|----------|-------|
-| Candidate embeddings | `artifacts/candidate_embeddings.npy` | Git LFS, 100K vectors |
-| JD embedding | `artifacts/jd_embedding.npy` | Precomputed |
-| Embedding model | `models/all-MiniLM-L6-v2/` | ~87 MB |
-| Cross-encoder model | `models/cross-encoder-ms-marco-MiniLM-L6-v2/` | ~87 MB |
-| Scoring config | `config/weights.yaml`, `config/dictionaries.yaml` | |
-
-Pre-computation is **not required** after clone — embeddings are shipped ready to use.
+| Mode | Processing Stage | Execution Time |
+| :--- | :--- | :--- |
+| **Stage 1 Retrieval Only** | 100,000 candidates | ~30 – 45 seconds |
+| **Full Two-Stage Pipeline** | Stage 1 + Top-1500 Cross-Encoder Reranking | **~90 – 120 seconds** |
 
 ---
 
-## How It Works (brief)
-
-```text
-100,000 candidates
-       ↓
-Stage 1 — 14-stage pipeline (parallel, all candidates)
-  • Validate timelines & honeypots
-  • Extract evidence from career text (not just skills list)
-  • Score technical fit + behavioral signals + semantic similarity
-  • Fuse: 45% technical + 20% behavioral + 20% BM25 + 15% semantic
-       ↓
-Stage 2 — Cross-encoder rerank (optional, top N pool only)
-  • Pairwise JD ↔ candidate scoring with ms-marco-MiniLM-L6-v2
-  • Final = 75% Stage 1 + 25% cross-encoder (normalized)
-       ↓
-Top 100 CSV + reasoning
-```
-
----
-
-## Repository Layout
+## 📂 Repository Structure
 
 ```text
 redrob_ranker/
-├── src/main.py              ← Entry point (run this)
-├── src/core/                ← Pipeline modules
-├── config/                  ← Weights & regex taxonomy
-├── artifacts/               ← Precomputed embeddings (Git LFS)
-├── models/                  ← Bundled offline models
-├── data/                    ← Place candidates.jsonl here
-├── output/                  ← submission.csv written here
-├── validate_submission.py   ← Format checker
-├── Dockerfile               ← Container build
-└── requirements.txt
+├── Dockerfile              # Production container specification
+├── requirements.txt        # Pinned Python dependencies
+├── validate_submission.py  # Output format validation utility
+├── config/                 # Weights, dictionaries, and scoring rules
+├── models/                 # Bundled offline Transformers models
+├── artifacts/              # Precomputed semantic candidate embeddings (Git LFS)
+└── src/
+    ├── main.py             # CLI Entrypoint (Interactive + Scripted modes)
+    └── core/               # Feature extractors, cross-encoder, and ranking logic
 ```
-
----
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| `No module named 'yaml'` | Run `source .venv/bin/activate` then `python -m pip install -r requirements.txt` |
-| `command not found: pip` | Use `python -m pip` instead of `pip` |
-| `candidates.jsonl not found` | Copy hackathon bundle file into `data/candidates.jsonl` |
-| LFS files missing / tiny `.npy` | Run `git lfs pull` from repo root |
-| `pydantic` install fails | You are on Python 3.14 — use **Python 3.11** |
-| Cross-encoder slow | Normal on CPU; pool 1500 ≈ 50s, pool 7000 ≈ 3.5 min |
-
----
-
-## Optional — Regenerate Embeddings
-
-Only needed if you change the embedding model or text builder (~20 min, offline):
-
-```bash
-source .venv/bin/activate
-python scripts/precompute_embeddings.py
-python scripts/precompute_jd_embedding.py
-```
-
----
-
-## Submission Metadata
-
-See `../submission_metadata.yaml` at repo root for team info, reproduce command, and compute environment details.
