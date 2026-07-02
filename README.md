@@ -7,6 +7,7 @@
 | **Team** | `Quad_Core` |
 | **Challenge** | Rank 100,000 candidates for the Senior AI Engineer JD → Top CSV with evidence reasoning |
 | **Sandbox** | [Docker Hub — `notbad007/redrob-ranker`](https://hub.docker.com/r/notbad007/redrob-ranker) |
+| **Video Walkthrough** | 🎥 **[Watch Demo Video](https://youtu.be/C3q39KapeMc)** *(Full system execution & architecture explanation)* |
 | **Metadata** | [`submission_metadata.yaml`](submission_metadata.yaml) *(portal fields + reproduce command)* |
 | **Technical Manual** | 👉 **[`redrob_ranker/README.md`](redrob_ranker/README.md)** *(Detailed 14-Stage Architecture & Scoring Deep Dive)* |
 
