@@ -11,7 +11,7 @@ Hack2Skill × Redrob AI | Rank 100K candidates → Top 100 CSV with reasoning.
 
 ```bash
 git clone https://github.com/NOT-BAD-YAR/Redrop.git
-cd Redrop && git checkout kavin && git lfs pull
+cd Redrop && git lfs pull
 cd redrob_ranker
 
 # Place hackathon candidates.jsonl into data/
