@@ -9,19 +9,20 @@
 | **Branch** | `hari` |
 | **Sandbox** | [Docker Hub — `notbad007/redrob-ranker`](https://hub.docker.com/r/notbad007/redrob-ranker) |
 | **Metadata** | [`submission_metadata.yaml`](submission_metadata.yaml) *(portal fields + reproduce command)* |
-| **Full Architecture Guide** | 👉 **[`redrob_ranker/README.md`](redrob_ranker/README.md)** *(System design, scoring weights, pipeline deep dive)* |
+| **Technical Manual** | 👉 **[`redrob_ranker/README.md`](redrob_ranker/README.md)** *(Detailed 14-Stage Architecture & Scoring Deep Dive)* |
 
 ---
 
-## ⚡ Quick Execution Guide (For Judges & Evaluators)
+## ⚡ Step-by-Step Execution Guide
 
-This engine evaluates 100,000+ candidates offline on CPU. Choose your preferred execution method below:
+This repository contains an offline AI engine capable of ranking 100,000+ candidates locally on CPU within minutes. Choose your execution workflow below:
 
 ---
 
-### Method 1: The Python Way (Local Execution)
+### Method 1: Local Execution (Python 3.11)
 
-#### Step 1: Clone Repository & Pull LFS Artifacts
+#### Step 1: Clone Repository & Pull Git LFS Artifacts
+Precomputed offline embeddings and bundled models are tracked via Git LFS (~146 MB total). Ensure Git LFS is installed (`git lfs install`), then clone:
 ```bash
 git clone https://github.com/NOT-BAD-YAR/Redrop.git
 cd Redrop
@@ -29,28 +30,35 @@ git checkout hari
 git lfs pull
 ```
 
-#### Step 2: Setup Python 3.11 Environment
+#### Step 2: Create Virtual Environment & Install Dependencies
+Requires **Python 3.11**.
 ```bash
 cd redrob_ranker
+
+# Create virtual environment
 python -m venv .venv
 
-# Windows PowerShell:
+# Activate on Windows PowerShell:
 .\.venv\Scripts\activate
-# Linux / macOS:
+# Activate on Linux / macOS:
 # source .venv/bin/activate
 
+# Upgrade pip and install pinned requirements
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-#### Step 3: Run the Pipeline
+#### Step 3: Run the Ranking Engine
+You can execute the ranker in two distinct modes:
 
-* **Option A: Automated / Scripted Mode (No user prompts)**
+* **Option A: Explicit / Scripted Mode (Production Automation)**
+  Runs immediately without user interaction by passing arguments directly:
   ```powershell
   python src/main.py --candidates ./data/candidates.jsonl --out ./output/submission.csv
   ```
 
-* **Option B: Interactive Mode (Clean CLI prompts)**
+* **Option B: Interactive Mode (Clean Prompts)**
+  Run simply without arguments. It will prompt you for the input and output file locations:
   ```powershell
   python src/main.py
   ```
@@ -59,22 +67,26 @@ pip install -r requirements.txt
   Enter output CSV path [output\submission.csv]: 
   ```
 
-#### Step 4: Validate Format
+#### Step 4: Validate Output Format
+Verify that your generated CSV strictly adheres to the hackathon submission format:
 ```powershell
 python validate_submission.py ./output/submission.csv
 ```
+Expected output: `Submission is valid.`
 
 ---
 
-### Method 2: The Docker Way (Terminal CLI)
+### Method 2: Docker CLI (No Local Python Required)
 
-No local Python setup required. Run directly via our public container:
+Run directly using our pre-built public container on Docker Hub.
 
+#### Step 1: Pull the Container Image
 ```bash
 docker pull notbad007/redrob-ranker:latest
 ```
 
-Place your `candidates.jsonl` in a local `data/` directory, create an `output/` directory, and run:
+#### Step 2: Execute Container with Volume Mounts
+Place your `candidates.jsonl` file inside a local folder named `data/`, create an empty folder named `output/`, and run:
 
 ```powershell
 # Windows PowerShell:
@@ -86,23 +98,25 @@ docker run --rm -v "${PWD}/data:/app/data" -v "${PWD}/output:/app/output" notbad
 docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/output:/app/output" notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
 ```
 
+Your ranked results will appear in `./output/submission.csv`.
+
 ---
 
-### Method 3: The Docker Way (Docker Desktop GUI)
+### Method 3: Docker Desktop GUI
 
-For visual evaluators who prefer UI execution over terminal commands:
+If you prefer using a graphical interface instead of terminal commands:
 
 1. Open **Docker Desktop**.
 2. In the top search bar, search for **`notbad007/redrob-ranker`** and click **Pull**.
-3. Go to the **Images** tab, find `notbad007/redrob-ranker:latest`, and click **Run**.
-4. Expand **Optional Settings**:
-   * **Volume 1 (Host path):** Select your local folder containing `candidates.jsonl` → **Container path:** `/app/data`
-   * **Volume 2 (Host path):** Select an empty output folder → **Container path:** `/app/output`
-5. Click **Run**. The ranked results will be deposited into your output folder as `submission.csv`!
+3. Go to the **Images** tab, locate `notbad007/redrob-ranker:latest`, and click **Run**.
+4. Click on **Optional Settings** before starting:
+   * Under **Host path** for Volume 1: Select your local folder containing `candidates.jsonl` → **Container path:** `/app/data`
+   * Under **Host path** for Volume 2: Select an empty folder for your output → **Container path:** `/app/output`
+5. Click **Run**. The container will process the candidates and deposit `submission.csv` directly into your selected output directory!
 
 ---
 
-## 📖 Deep Technical Architecture & Internals
+## 📖 System Architecture & How It Works
 
-For full details on how our two-stage pipeline works, feature extraction formulas, cross-encoder reranking, and explainability reasoning generation, see the Technical Manual:
+To understand our **14-Stage Evaluation Pipeline**, orthogonal scoring matrices (45% Technical, 20% Behavioral, 20% BM25, 15% Dense Semantic), cross-encoder reranking mechanics, and deterministic explainability engine, read the full Technical Manual:
 👉 **[`redrob_ranker/README.md`](redrob_ranker/README.md)**
