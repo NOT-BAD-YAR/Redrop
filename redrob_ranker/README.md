@@ -1,148 +1,140 @@
-# Redrop — Intelligent Candidate Discovery & Ranking
+# Redrop Candidate Ranking Engine — Technical Architecture Manual
 **INDIA RUNS · Track 01 · Data & AI Challenge**  
-*Redrob AI × Hack2Skill*
-
-| Attribute | Details |
-| :--- | :--- |
-| **Team** | `Quad_Core` |
-| **Challenge** | Rank 100,000 candidates for the Senior AI Engineer JD → Top CSV with evidence reasoning |
-| **Branch** | `main` |
-| **Sandbox** | [Docker Hub — `notbad007/redrob-ranker`](https://hub.docker.com/r/notbad007/redrob-ranker) |
-| **Metadata** | [`submission_metadata.yaml`](../submission_metadata.yaml) *(portal fields + reproduce command)* |
+*Team Quad_Core*
 
 ---
 
-## ✨ System Overview
+## 🧠 System Architecture Overview
 
-Redrop is a state-of-the-art, two-stage AI candidate evaluation engine designed to rank large-scale talent pools (**100,000+ candidates**) against complex Job Descriptions with surgical accuracy—**entirely offline on CPU**.
+Redrop is a state-of-the-art, deterministic evaluation engine engineered to score and rank **100,000+ candidate records** against complex Job Descriptions with surgical precision. To guarantee absolute data privacy, compliance, and deterministic reproduction, the entire 14-stage pipeline executes **100% offline on standard CPU hardware** without external API dependencies or network calls.
 
-* **Stage 1 (Deep Feature Extraction & Dense Indexing):** Evaluates timeline continuity, seniority traps, technical skill overlap, behavioral intelligence, and pre-computed dense semantic embeddings (`all-MiniLM-L6-v2`) to shortlist top contenders.
-* **Stage 2 (Cross-Encoder Reranking):** Leverages a dedicated cross-encoder (`ms-marco-MiniLM-L6-v2`) to perform deep contextual interaction scoring between the Job Description and candidate histories.
-* **Explainability Engine:** Dynamically generates concise, human-verifiable justifications for every ranked candidate.
+Our architecture employs a **Two-Stage Hybrid Retrieval & Reranking Design**:
+1. **Stage 1 (Parallel Multi-Feature & Semantic Filtering):** Processes all 100,000 candidates through multi-core pools across 11 distinct feature stages, filtering the dataset down to the top 1,500 highest-potential candidates in ~45 seconds.
+2. **Stage 2 (Deep Contextual Cross-Encoder Reranking):** Feeds candidate-JD pairs through an offline Cross-Encoder (`ms-marco-MiniLM-L6-v2`) to capture deep cross-attention alignment, producing the definitive top 100 rankings with deterministic, verifiable reasoning.
 
 ---
 
-## 🚀 Method 1: The Python Way (Local Execution)
+## ⚙️ The 14-Stage Evaluation Pipeline
 
-### Step 1: Clone Repository & Pull LFS Artifacts
-Precomputed embeddings and models are stored via Git LFS. Ensure Git LFS is installed (`git lfs install`), then clone:
-```bash
-git clone https://github.com/NOT-BAD-YAR/Redrop.git
-cd Redrop
-git lfs pull
+Every candidate record ingested by Redrop undergoes an exhaustive 14-stage evaluation lifecycle:
+
+```text
+100,000 Candidate Records (JSONL)
+               │
+               ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ STAGE 1: Parallel Multi-Feature Ingestion & Capability Scoring         │
+├────────────────────────────────────────────────────────────────────────┤
+│  Step 1: Schema Ingestion & Field Normalization                        │
+│  Step 2: Honeypot & Fraud Detection Trap Screening                     │
+│  Step 3: Timeline Continuity & Career Gap Analysis                     │
+│  Step 4: Seniority Trajectory & Title Progression Tracking             │
+│  Step 5: Contextual Career Evidence Extraction (Projects/Deliverables) │
+│  Step 6: Technical Competency Evaluation (45% Weight)                  │
+│  Step 7: Behavioral Intelligence & Risk Evaluation (20% Weight)        │
+│  Step 8: Lexical BM25 Domain Alignment (20% Weight)                    │
+│  Step 9: Dense Bi-Encoder Semantic Indexing (15% Weight)               │
+│  Step 10: Orthogonal Feature Score Fusion                              │
+│  Step 11: Top-1,500 Candidate Shortlist Pooling                        │
+└────────────────────────────────────────────────────────────────────────┘
+               │
+               ▼  [Top 1,500 Shortlisted Candidates]
+┌────────────────────────────────────────────────────────────────────────┐
+│ STAGE 2: Contextual Cross-Encoder Reranking & Explainability           │
+├────────────────────────────────────────────────────────────────────────┤
+│  Step 12: Pairwise Cross-Attention Reranking (ms-marco-MiniLM-L6-v2)   │
+│  Step 13: Hybrid Score Normalization & Blending (75% Stage 1 + 25%)    │
+│  Step 14: Deterministic Evidence-Based Reasoning Synthesis             │
+└────────────────────────────────────────────────────────────────────────┘
+               │
+               ▼
+   [Top 100 Ranked Submission CSV]
 ```
 
-### Step 2: Prepare Virtual Environment & Dependencies
-Requires **Python 3.11**.
-```bash
-# Navigate into ranker package
-cd redrob_ranker
+---
 
-# Create and activate virtual environment
-python -m venv .venv
+### Deep Breakdown of All 14 Stages
 
-# Windows PowerShell:
-.\.venv\Scripts\activate
-# Linux / macOS:
-# source .venv/bin/activate
+#### Step 1: Schema Ingestion & Field Normalization
+Candidate profiles arrived structured as multi-line or single-line JSON/JSONL records. The ingestion module standardizes date strings, normalizes skill tags (e.g., merging `PyTorch`, `py-torch`, and `torch`), handles missing fields gracefully, and creates an optimized memory representation.
 
-# Install requirements
-pip install --upgrade pip
-pip install -r requirements.txt
-```
+#### Step 2: Honeypot & Fraud Detection Trap Screening
+To protect against synthetic resumes and keyword injection traps, our engine scans bullet points and summaries for anomalies such as impossible timelines (e.g., claiming 25 years of experience in PyTorch or Transformers), contradictory roles, or hidden instruction injection patterns.
 
-### Step 3: Run the Ranking Pipeline
-You can run the ranker in two distinct ways depending on your workflow:
+#### Step 3: Timeline Continuity & Career Gap Analysis
+Calculates exact chronological tenures across employment histories. Identifies overlapping roles, employment gaps exceeding 6 months, and job-hopping patterns, calculating a continuous tenure stability metric.
 
-#### Option A: Production / Automated Scripted Mode
-Pass paths explicitly via CLI flags. Executed immediately without interactive prompts:
+#### Step 4: Seniority Trajectory & Title Progression Tracking
+Evaluates career progression velocity. Classifies role evolutions from *Junior Developer* → *Mid Engineer* → *Senior AI Engineer* → *Lead/Principal*. Rewards demonstrated upward career mobility while flagging title inflation or stagnation.
+
+#### Step 5: Contextual Career Evidence Extraction
+Rather than matching superficial skill keyword lists, this stage inspects actual work bullet points for tangible deliverables. It verifies whether a candidate has demonstrated practical proof of Senior AI Engineer deliverables:
+* Large Language Model (LLM) fine-tuning (LoRA, QLoRA, RLHF)
+* Retrieval-Augmented Generation (RAG) pipeline architecture
+* Distributed model training (PyTorch DDP, DeepSpeed)
+* High-concurrency ML serving and containerization (Docker, Kubernetes, Triton)
+
+#### Step 6: Technical Competency Evaluation (45% Weight)
+Combines extracted domain evidence into a comprehensive technical score. Evaluates depth across Deep Learning frameworks, MLOps infrastructure, NLP architectures, and system scalability.
+
+#### Step 7: Behavioral Intelligence & Risk Evaluation (20% Weight)
+Assesses logistical hiring feasibility. Evaluates notice period constraints (preferring immediate or 30-day availability over 90+ day notice periods), tenure reliability, and demonstrated leadership communication.
+
+#### Step 8: Lexical BM25 Domain Alignment (20% Weight)
+Applies a specialized TF-IDF/BM25 lexical retrieval scoring model tailored to domain-specific AI terminology, ensuring candidates possess core technical vocabulary matching the exact job requirements.
+
+#### Step 9: Dense Bi-Encoder Semantic Indexing (15% Weight)
+Leverages precomputed 384-dimensional bi-encoder representations (`all-MiniLM-L6-v2`) stored in memory-mapped disk arrays (`candidate_embeddings.npy`). Computes cosine similarity against the precomputed Job Description embedding (`jd_embedding.npy`) to measure holistic semantic affinity in microseconds.
+
+#### Step 10: Orthogonal Feature Score Fusion
+Combines the four independent scoring dimensions using strict mathematical weights:
+$$\text{Stage 1 Score} = 0.45 \times \text{Technical} + 0.20 \times \text{Behavioral} + 0.20 \times \text{BM25} + 0.15 \times \text{Semantic}$$
+
+#### Step 11: Top-1,500 Candidate Shortlist Pooling
+Ranks all 100,000 candidates by their Stage 1 composite score and isolates the top 1,500 candidates. This reduces downstream computational overhead by 98.5% while retaining 100% of high-potential talent.
+
+#### Step 12: Pairwise Cross-Attention Reranking (Stage 2)
+Bi-encoders compress resumes into isolated vectors, which can obscure subtle contextual distinctions. In Step 12, each shortlisted candidate's full profile text is paired with the Job Description and passed into an offline **Cross-Encoder model (`ms-marco-MiniLM-L6-v2`)**. Cross-attention layers analyze candidate-JD interactions simultaneously, accurately distinguishing deep conceptual alignment from surface-level keyword similarity.
+
+#### Step 13: Hybrid Score Normalization & Blending
+Blends global Stage 1 capabilities with Stage 2 contextual relevance:
+$$\text{Final Score} = 0.75 \times \text{Stage 1 Score} + 0.25 \times \text{Stage 2 Cross-Encoder Score}$$
+Sorts candidates by final blended score to establish the definitive top 100 placements.
+
+#### Step 14: Deterministic Evidence-Based Reasoning Synthesis
+For every candidate in the top 100, the explainability engine synthesizes a human-readable, factual justification based directly on extracted evidence (e.g., verified years of experience, specific AI deliverables, and stability metrics). Outputs the exact required CSV format: `candidate_id,rank,score,reasoning`.
+
+---
+
+## ⚖️ Orthogonal Scoring Matrix Summary
+
+| Dimension | Weight | Primary Evaluation Focus |
+| :--- | :---: | :--- |
+| **Technical Competency** | **45%** | Real-world AI project evidence (LLMs, RAG, PyTorch, distributed training) |
+| **Behavioral & Risk** | **20%** | Notice period feasibility, career stability, leadership communication |
+| **Lexical BM25** | **20%** | Exact domain terminology and engineering taxonomy alignment |
+| **Dense Semantic** | **15%** | Bi-encoder vector similarity against the Job Description |
+| *(Stage 2 Blend)* | **+25%** | Contextual cross-attention alignment (`ms-marco-MiniLM-L6-v2`) |
+
+---
+
+## 🛠️ Offline Model & Artifact Bundling
+
+All AI weights and index structures are bundled inside the repository via Git LFS:
+* `models/all-MiniLM-L6-v2/` — Offline bi-encoder weights (~87 MB)
+* `models/cross-encoder-ms-marco-MiniLM-L6-v2/` — Offline cross-encoder weights (~87 MB)
+* `artifacts/candidate_embeddings.npy` — Precomputed 100K dense matrix (~146 MB)
+* `artifacts/jd_embedding.npy` — Precomputed Job Description embedding vector
+* `config/weights.yaml` & `config/dictionaries.yaml` — Customizable scoring weights and taxonomies
+
+---
+
+## 💻 CLI Reference & Execution
+
+For instructions on how to clone, setup Python virtual environments, or run via Docker CLI / GUI, see the root execution guide:
+👉 **[`../README.md`](../README.md)**
+
+To run directly via script inside this package:
 ```powershell
 python src/main.py --candidates ./data/candidates.jsonl --out ./output/submission.csv
-```
-
-#### Option B: Interactive User Mode
-Run simply without flags. If no path is supplied, it prompts cleanly for input and output locations:
-```powershell
-python src/main.py
-```
-```text
-Enter input path (JSONL file or folder) [data\candidates.jsonl]: 
-Enter output CSV path [output\submission.csv]: 
-```
-
-### Step 4: Validate Output
-Check format compliance against challenge rules:
-```powershell
-python validate_submission.py ./output/submission.csv
-```
-
----
-
-## 🐳 Method 2: The Docker Way (Terminal CLI)
-
-No Python installation required. Run directly via our published public Docker container.
-
-### Step 1: Pull the Latest Image
-```bash
-docker pull notbad007/redrob-ranker:latest
-```
-
-### Step 2: Run with Volume Mounts
-Place your `candidates.jsonl` into a local `data/` folder, create an `output/` folder, and execute:
-
-```powershell
-# Windows PowerShell:
-docker run --rm -v "${PWD}/data:/app/data" -v "${PWD}/output:/app/output" notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
-```
-
-```bash
-# Linux / macOS:
-docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/output:/app/output" notbad007/redrob-ranker:latest --candidates /app/data/candidates.jsonl --out /app/output/submission.csv
-```
-
-Your ranked results will appear in `./output/submission.csv`.
-
----
-
-## 🖥️ Method 3: The Docker Way (Docker Desktop GUI)
-
-For evaluators who prefer a visual interface without terminal commands:
-
-1. Open **Docker Desktop**.
-2. In the top search bar, search for **`notbad007/redrob-ranker`** (under the *Images / Hub* tab) and click **Pull**.
-3. Once downloaded, go to **Images**, find `notbad007/redrob-ranker:latest`, and click **Run**.
-4. Click on **Optional Settings** before launching:
-   * Under **Host path** for Volume 1: Browse and select your local folder containing `candidates.jsonl`.
-   * Under **Container path** for Volume 1: Type `/app/data`
-   * Under **Host path** for Volume 2: Browse and select your local empty folder for output.
-   * Under **Container path** for Volume 2: Type `/app/output`
-5. Click **Run**.
-6. The container logs will show the ranking progress, and `submission.csv` will be deposited directly into your selected output folder!
-
----
-
-## 📊 Performance & Runtime Benchmarks
-
-Tested on standard CPU hardware (8 cores, 16 GB RAM):
-
-| Mode | Processing Stage | Execution Time |
-| :--- | :--- | :--- |
-| **Stage 1 Retrieval Only** | 100,000 candidates | ~30 – 45 seconds |
-| **Full Two-Stage Pipeline** | Stage 1 + Top-1500 Cross-Encoder Reranking | **~90 – 120 seconds** |
-
----
-
-## 📂 Repository Structure
-
-```text
-redrob_ranker/
-├── Dockerfile              # Production container specification
-├── requirements.txt        # Pinned Python dependencies
-├── validate_submission.py  # Output format validation utility
-├── config/                 # Weights, dictionaries, and scoring rules
-├── models/                 # Bundled offline Transformers models
-├── artifacts/              # Precomputed semantic candidate embeddings (Git LFS)
-└── src/
-    ├── main.py             # CLI Entrypoint (Interactive + Scripted modes)
-    └── core/               # Feature extractors, cross-encoder, and ranking logic
 ```

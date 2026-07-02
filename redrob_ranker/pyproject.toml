@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redrob-ranker"
+version = "1.0.0"
+description = "Redrop two-stage offline CPU candidate evaluation and ranking engine (Track 01)"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "MIT" }
+authors = [
+    { name = "Team Quad_Core" },
+    { name = "Kavin C", email = "727724eucy042@skcet.ac.in" },
+]
+keywords = [
+    "candidate-ranking",
+    "recruitment-ai",
+    "sentence-transformers",
+    "cross-encoder",
+    "offline-nlp",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "PyYAML==6.0.1",
+    "pydantic==2.5.3",
+    "sentence-transformers==5.6.0",
+    "python-dotenv==1.0.1",
+    "numpy>=1.24.0,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.7.0",
+    "flake8>=6.1.0",
+]
+
+# Console entry point. Run from the cloned redrob_ranker/ directory so bundled
+# models/ and artifacts/ resolve correctly (see README).
+[project.scripts]
+redrob-ranker = "src.main:main"
+
+[project.urls]
+Repository = "https://github.com/NOT-BAD-YAR/Redrop.git"
+Sandbox = "https://hub.docker.com/r/notbad007/redrob-ranker"
+Documentation = "https://github.com/NOT-BAD-YAR/Redrop/blob/main/README.md"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+
+[tool.redrob]
+# Offline assets (not installed into site-packages — must run from repo clone)
+models_dir = "models"
+artifacts_dir = "artifacts"
+bi_encoder = "models/all-MiniLM-L6-v2"
+cross_encoder = "models/cross-encoder-ms-marco-MiniLM-L6-v2"
+embedding_dimension = 384
+reproduce_command = "python src/main.py --candidates ./data/candidates.jsonl --out ./output/submission.csv --use-cross-encoder true --rerank-pool-size 1500"
+validate_command = "python validate_submission.py ./output/submission.csv"
